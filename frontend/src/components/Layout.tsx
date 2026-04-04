@@ -52,7 +52,7 @@ export default function Layout () {
                     <h2 className="text-3xl font-black text-blue-600 tracking-wider drop-shadow-sm">MINI JIRA</h2>
                 </div>
                 <nav className="flex-1 p-4 space-y-2 mt-4">
-                    <Link to="/" className={getLinkClass("/")}>
+                    <Link to="/dashboard" className={getLinkClass("/")}>
                         Bảng điều khiển 
                     </Link>
                     <Link to="/projects" className={getLinkClass("/projects")}>
