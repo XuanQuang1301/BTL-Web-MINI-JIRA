@@ -1,0 +1,12 @@
+package com.web.dto.comment;
+
+import jakarta.validation.constraints.NotBlank;
+import lombok.Getter;
+import lombok.Setter;
+
+@Getter
+@Setter
+public class CommentRequest {
+    @NotBlank(message = "Nội dung bình luận không được để trống")
+    private String content;
+}

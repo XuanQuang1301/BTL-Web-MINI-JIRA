@@ -1,0 +1,14 @@
+{
+    "configurations": [
+        {
+            "type": "java",
+            "name": "Spring Boot-WebApplication<minijira>",
+            "request": "launch",
+            "cwd": "${workspaceFolder}",
+            "mainClass": "com.web.WebApplication",
+            "projectName": "minijira",
+            "args": "",
+            "envFile": "${workspaceFolder}/.env"
+        }
+    ]
+}
