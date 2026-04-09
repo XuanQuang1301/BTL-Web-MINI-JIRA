@@ -27,8 +27,8 @@ export default function Login() {
             const response = await axios.post('http://localhost:8081/api/auth/signin', formData);
             const token = response.data.token; 
             localStorage.setItem('token', token); 
+            window.location.href = '/dashboard';
             console.log('Đăng nhập thành công! Token:', token); 
-            navigate('/'); 
         }
         catch(err: any){
             console.error('Lỗi đăng nhập:', err); 

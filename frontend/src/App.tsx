@@ -20,13 +20,15 @@ function App() {
                 path="/" 
                 element={isAuthenticated ? <Navigate to="/dashboard" /> : <Navigate to="/login" />} 
             />
-            <Route element={<Layout />}>
+            <Route element={isAuthenticated ? <Layout /> : <Navigate to="/login" />}>
                 <Route path="/dashboard" element={<Dashboard />} /> 
                 <Route path="/projects" element={<Projects />} /> 
                 <Route path="/projects/:id" element={<ProjectDetail />} /> 
                 <Route path="/tasks" element={<MyTasks />} /> 
                 <Route path="/profile" element={<Profile />} />
-                <Route path="/users" element={<UserManagement />} /> 
+                <Route path="/timeline" element={<UserManagement />} />
+                <Route path="/users" element={<UserManagement />} />
+
             </Route>
             <Route path="*" element={<Navigate to="/" />} />
         </Routes>

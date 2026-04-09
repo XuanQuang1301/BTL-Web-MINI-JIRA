@@ -1,104 +1,167 @@
-import { useState } from 'react'; 
+import { useState, useEffect } from 'react';
+import axios from 'axios';
+import ChangeAvatarModal from '../components/profile/ChangeAvatarModal';
 
 export default function Profile() {
-    const [name, setName] = useState('Xuân Quang'); 
-    const [email, setEmail] = useState('quangxuan1301@gmail.com'); 
-    const [isSaving, setIsSaving] = useState(false); 
-    const userRole = email === 'quangxuan1301@gmail.com' ? 'Quản trị viên (Admin)' : 'Thành viên (User)';
+    const [user, setUser] = useState<any>(null);
+    const [isLoading, setIsLoading] = useState(true);
+    const [showAvatarModal, setShowAvatarModal] = useState(false);
 
-    const handleUpdateProfile = (e: React.FormEvent) => {
-        e.preventDefault(); // Đã thêm () để chặn load lại trang
-        setIsSaving(true); 
-                setTimeout(() => {
-            alert("Đã cập nhật thông tin thành công!"); 
-            setIsSaving(false); 
-        }, 1000); 
-    }
+    const fetchUserProfile = async () => {
+        try {
+            const token = localStorage.getItem('token');
+            const res = await axios.get('http://localhost:8081/api/users/profile', {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            setUser(res.data);
+        } catch (error) {
+            console.error(error);
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    useEffect(() => { fetchUserProfile(); }, []);
+
+    const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+        setUser({ ...user, [e.target.name]: e.target.value });
+    };
+
+    if (isLoading) return <div className="p-10">Đang tải...</div>;
+    if (!user) return <div className="p-10">Lỗi kết nối!</div>;
 
     return (
-        <div className="max-w-4xl mx-auto h-full flex flex-col pb-8">
-            <div className="mb-8">
-                <h1 className="text-3xl font-extrabold text-gray-900 mb-1">Hồ sơ cá nhân</h1>
-                <p className="text-gray-500 text-sm">Quản lý thông tin tài khoản và bảo mật của bạn.</p>
-            </div>
-            
-            {/* Vỏ ngoài của Form (Light Mode) */}
-            <div className="bg-white rounded-3xl border border-gray-200 shadow-sm overflow-hidden">
-                
-                {/* Phần Header của Form */}
-                <div className="p-8 border-b border-gray-100 flex items-center gap-6 bg-gray-50/50">
-                    <div className="w-24 h-24 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 text-3xl font-black shadow-inner uppercase">
-                        {email ? email.charAt(0) : 'U'}
+        <div className="max-w-5xl mx-auto p-10 bg-white min-h-screen">
+            {/* Header: Title & Avatar */}
+            <div className="flex justify-between items-start mb-10">
+                <h1 className="text-4xl font-bold text-gray-900">Edit profile</h1>
+                <div className="relative">
+                    <div className="w-24 h-24 rounded-full overflow-hidden border-2 border-gray-100 shadow-sm">
+                        {user.avatarUrl ? (
+                            <img src={user.avatarUrl} alt="Profile" className="w-full h-full object-cover" />
+                        ) : (
+                            <div className="w-full h-full bg-gray-200 flex items-center justify-center font-bold text-xl">
+                                {user.name?.substring(0, 1)}
+                            </div>
+                        )}
                     </div>
-                    <div>
-                        <h2 className="text-2xl font-bold text-gray-900">{name || 'Chưa có tên'}</h2>
-                        <p className="text-gray-500 mt-1">{email || 'Chưa có email'}</p>
-                        <button className="mt-4 text-sm bg-white hover:bg-gray-50 text-gray-700 px-4 py-2 rounded-xl border border-gray-300 font-medium transition shadow-sm">
-                            Đổi ảnh đại diện
-                        </button>
+                    <button 
+                        onClick={() => setShowAvatarModal(true)}
+                        className="absolute bottom-0 right-0 bg-white p-1.5 rounded-full shadow-md border border-gray-200 hover:bg-gray-50"
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                        </svg>
+                    </button>
+                </div>
+            </div>
+
+            {/* Form */}
+            <form className="space-y-6 max-w-3xl">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="space-y-2">
+                        <label className="block font-bold text-gray-700">First Name</label>
+                        <input 
+                            name="name" 
+                            value={user.name} 
+                            onChange={handleChange}
+                            className="w-full border border-gray-300 rounded-md px-4 py-3 focus:ring-1 focus:ring-orange-500 outline-none transition"
+                        />
+                    </div>
+                    <div className="space-y-2">
+                        <label className="block font-bold text-gray-700">Last Name</label>
+                        <input 
+                            className="w-full border border-gray-300 rounded-md px-4 py-3 bg-gray-50 cursor-not-allowed"
+                            placeholder="Bozorgi" readOnly
+                        />
                     </div>
                 </div>
 
-                {/* Phần Form nhập liệu */}
-                <form onSubmit={handleUpdateProfile} className="p-8 space-y-6">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        {/* Nhập Họ Tên */}
-                        <div>
-                            <label className="block text-sm font-bold text-gray-700 mb-2">Họ và tên</label>
-                            <input 
-                                type="text" 
-                                required
-                                value={name}
-                                onChange={(e) => setName(e.target.value)}
-                                className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-gray-900 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 focus:bg-white transition"
-                            />
-                        </div>
-
-                        {/* Nhập Email (Đã cho phép chỉnh sửa) */}
-                        <div>
-                            <label className="block text-sm font-bold text-gray-700 mb-2">Địa chỉ Email</label>
-                            <input 
-                                type="email" 
-                                required
-                                value={email}
-                                onChange={(e) => setEmail(e.target.value)}
-                                className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-gray-900 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 focus:bg-white transition"
-                            />
-                            <p className="text-xs text-gray-500 mt-2">
-                                Đổi email sẽ thay đổi tài khoản đăng nhập của bạn.
-                            </p>
-                        </div>
-
-                        {/* Chức vụ (Tự động thay đổi, không cho sửa tay) */}
-                        <div className="md:col-span-2">
-                            <label className="block text-sm font-bold text-gray-700 mb-2">Chức vụ / Vai trò</label>
-                            <input 
-                                type="text" 
-                                value={userRole}
-                                disabled
-                                className="w-full bg-gray-100 border border-gray-200 rounded-xl px-4 py-3 text-gray-500 font-medium cursor-not-allowed"
-                            />
-                            <p className="text-xs text-blue-600 mt-2 font-medium">
-                                * Quyền quản trị viên chỉ cấp tự động cho email quangxuan1301@gmail.com
-                            </p>
-                        </div>
+                <div className="space-y-2 relative">
+                    <label className="block font-bold text-gray-700">Email</label>
+                    <div className="relative">
+                        <input 
+                            value={user.email} 
+                            className="w-full border border-gray-300 rounded-md px-4 py-3 bg-white pr-10 outline-none"
+                            readOnly
+                        />
+                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-green-500">
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" viewBox="0 0 20 20" fill="currentColor">
+                                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                            </svg>
+                        </span>
                     </div>
+                </div>
 
-                    {/* Khu vực nút bấm */}
-                    <div className="pt-6 border-t border-gray-100 flex justify-end gap-3">
-                        <button type="button" className="px-6 py-3 rounded-xl font-bold text-gray-600 border border-gray-300 hover:bg-gray-50 transition">
-                            Khôi phục
-                        </button>
-                        <button 
-                            type="submit" 
-                            disabled={isSaving}
-                            className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-xl font-bold transition shadow-sm hover:shadow flex items-center gap-2 disabled:opacity-50"
-                        >
-                            {isSaving ? 'Đang lưu...' : 'Lưu thay đổi'}
-                        </button>
+                <div className="space-y-2">
+                    <label className="block font-bold text-gray-700">Address</label>
+                    <input 
+                        name="address" 
+                        value={user.address || ''} 
+                        onChange={handleChange}
+                        className="w-full border border-gray-300 rounded-md px-4 py-3 outline-none focus:border-orange-500"
+                        placeholder="33062 Zboncak isle"
+                    />
+                </div>
+
+                <div className="space-y-2">
+                    <label className="block font-bold text-gray-700">Contact Number</label>
+                    <input 
+                        name="phoneNumber" 
+                        value={user.phoneNumber || ''} 
+                        onChange={handleChange}
+                        className="w-full border border-gray-300 rounded-md px-4 py-3 outline-none"
+                        placeholder="58077.79"
+                    />
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="space-y-2">
+                        <label className="block font-bold text-gray-700">City</label>
+                        <select className="w-full border border-gray-300 rounded-md px-4 py-3 outline-none appearance-none bg-no-repeat bg-[right_1rem_center] bg-[length:1em_1em]" style={{backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='currentColor'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'/%3E%3C/svg%3E")`}}>
+                            <option>{user.city || 'Chọn thành phố'}</option>
+                        </select>
                     </div>
-                </form>
-            </div>
+                    <div className="space-y-2">
+                        <label className="block font-bold text-gray-700">State</label>
+                        <select className="w-full border border-gray-300 rounded-md px-4 py-3 outline-none appearance-none bg-no-repeat bg-[right_1rem_center] bg-[length:1em_1em]" style={{backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='currentColor'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'/%3E%3C/svg%3E")`}}>
+                            <option>{user.state || 'Chọn vùng'}</option>
+                        </select>
+                    </div>
+                </div>
+                <div className="space-y-2 pt-4">
+                    <label className="block font-bold text-gray-700">Password</label>
+                    <div className="relative">
+                        <input 
+                            type="password"
+                            value="********"
+                            className="w-full border border-gray-300 rounded-md px-4 py-3 outline-none"
+                            readOnly
+                        />
+                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-green-500">
+                             <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" viewBox="0 0 20 20" fill="currentColor">
+                                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                            </svg>
+                        </span>
+                    </div>
+                </div>
+                <div className="flex gap-4 pt-10">
+                    <button type="button" className="flex-1 md:flex-none border border-orange-500 text-orange-500 font-bold py-3 px-12 rounded-md hover:bg-orange-50 transition">
+                        Cancel
+                    </button>
+                    <button type="submit" className="flex-1 md:flex-none bg-orange-600 text-white font-bold py-3 px-16 rounded-md hover:bg-orange-700 transition shadow-lg">
+                        Save
+                    </button>
+                </div>
+            </form>
+
+            {showAvatarModal && (
+                <ChangeAvatarModal 
+                    currentAvatar={user.avatarUrl} 
+                    onClose={() => setShowAvatarModal(false)} 
+                    onUpdate={(newUrl: string) => setUser({ ...user, avatarUrl: newUrl })} 
+                />
+            )}
         </div>
-    )
+    );
 }

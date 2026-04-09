@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import type { DropResult } from '@hello-pangea/dnd';
+
 interface Task {
     id: number;
     title: string;
@@ -36,6 +37,9 @@ const initialBoard: BoardData = {
 };
 
 export default function MyTasks() {
+    const [viewMode, setViewMode] = useState<'list' | 'kanban'>('list');
+    const [activeTab, setActiveTab] = useState('all');
+
     const [columns, setColumns] = useState<BoardData>(initialBoard);
     const [isLoading, setIsLoading] = useState(true);
     const [projectsMap, setProjectsMap] = useState<Record<number, ProjectInfo>>({});
@@ -52,16 +56,12 @@ export default function MyTasks() {
     const [comments, setComments] = useState<any[]>([]);
     const [commentText, setCommentText] = useState('');
 
-    // --- STATE MỚI CHO SUBTASKS ---
     const [subTasks, setSubTasks] = useState<any[]>([]);
     const [newSubContent, setNewSubContent] = useState('');
 
     const fetchData = async () => {
         try {
             const token = localStorage.getItem('token');
-            const storedId = localStorage.getItem('userId');
-            const myId = storedId ? Number(storedId) : null;
-
             const config = { headers: { Authorization: `Bearer ${token}` } };
             const [tasksRes, projectsRes, usersRes] = await Promise.all([
                 axios.get('http://localhost:8081/api/project/tasks/my-tasks', config),
@@ -97,133 +97,45 @@ export default function MyTasks() {
 
     useEffect(() => { fetchData(); }, []);
 
-    // --- LOGIC XỬ LÝ SUBTASKS ---
     const fetchSubTasks = async (taskId: number) => {
         try {
             const token = localStorage.getItem('token');
-            const res = await axios.get(`http://localhost:8081/api/subtasks/task/${taskId}`, {
-                headers: { Authorization: `Bearer ${token}` }
-            });
+            const res = await axios.get(`http://localhost:8081/api/subtasks/task/${taskId}`, { headers: { Authorization: `Bearer ${token}` } });
             setSubTasks(res.data);
-        } catch (error) { console.error("Lỗi lấy checklist:", error); }
+        } catch (error) { console.error(error); }
     };
 
     const handleAddSubTask = async () => {
         const content = newSubContent.trim();
-        if (!content) return;
-        const taskIdNum = Number(editingTask?.id);
-        if (!taskIdNum || isNaN(taskIdNum)) {
-            console.error("Lỗi: Không tìm thấy ID hợp lệ để thêm subtask!", editingTask);
-            alert("Lỗi hệ thống: Không xác định được mã công việc. Bạn hãy đóng Modal và mở lại nhé!");
-            return;
-        }
+        if (!content || !editingTask) return;
         try {
             const token = localStorage.getItem('token');
-            const res = await axios.post(`http://localhost:8081/api/subtasks`, 
-                { 
-                    taskId: taskIdNum, 
-                    content: content 
-                },
+            await axios.post(`http://localhost:8081/api/subtasks`, 
+                { taskId: editingTask.id, content: content },
                 { headers: { Authorization: `Bearer ${token}` } }
             );
-
             setNewSubContent('');
-            fetchSubTasks(taskIdNum);
+            fetchSubTasks(editingTask.id);
             fetchData(); 
-        } catch (error: any) { 
-            console.error("Backend:", error.response?.data);
-            alert("Lỗi server: " + (error.response?.data?.error || "Không thể thêm việc")); 
-        }
+        } catch (error) { alert("Lỗi thêm subtask"); }
     };
 
     const handleToggleSub = async (subId: number, isDone: boolean) => {
-        console.log("Đã bấm tick Subtask ID:", subId, "Trạng thái cũ:", isDone); 
-    try {
-        const token = localStorage.getItem('token');
-        const newStatus = !isDone; 
-        const url = `http://localhost:8081/api/subtasks/${subId}/toggle`;
-        const res = await axios.patch(url, 
-            { isDone: newStatus },
-            { headers: { Authorization: `Bearer ${token}` } }
-        );
-        console.log("Backend báo lưu OK:", res.data);
-        await fetchSubTasks(editingTask!.id);
-        await fetchData(); 
-    } catch (error) {
-        console.error(error);
-        alert("Lỗi: Kiểm tra xem bạn có quyền cập nhật Task không (Lỗi 403)!");
-    }
-};
-
-    const onDragEnd = async (result: DropResult) => {
-        if (!result.destination) return;
-        const { source, destination, draggableId } = result;
-        if (source.droppableId === destination.droppableId && source.index === destination.index) return;
-
-        const sourceColumn = columns[source.droppableId];
-        const destColumn = columns[destination.droppableId];
-        const draggableTask = sourceColumn.items[source.index];
-
-        if (destination.droppableId === 'DONE') {
-            const userRole = projectsMap[draggableTask.projectId]?.role;
-            if (userRole !== 'OWNER' && userRole !== 'MANAGER') {
-                alert("⛔ Chỉ Quản lý có quyền duyệt sang Đã xong!");
-                return;
-            }
-        }
-
-        const sourceItems = [...sourceColumn.items];
-        const destItems = [...destColumn.items];
-        const [removed] = sourceItems.splice(source.index, 1);
-
-        if (source.droppableId !== destination.droppableId) {
-            removed.status = destination.droppableId;
-            if (destination.droppableId === 'DONE') {
-                removed.progress = 100;
-            }
-            destItems.splice(destination.index, 0, removed);
-            setColumns({
-                ...columns,
-                [source.droppableId]: { ...sourceColumn, items: sourceItems },
-                [destination.droppableId]: { ...destColumn, items: destItems },
-            });
-            try {
-                const token = localStorage.getItem('token');
-                const updateData: any = { status: destination.droppableId };
-                if (destination.droppableId === 'DONE') {
-                    updateData.progress = 100;
-                }
-                await axios.patch(`http://localhost:8081/api/project/${draggableTask.projectId}/tasks/${draggableId}/status`,
-                    { status: destination.droppableId },
-                    { headers: { Authorization: `Bearer ${token}` } }
-                );
-                fetchData();
-            } catch (error) { fetchData(); }
-        } else {
-            sourceItems.splice(destination.index, 0, removed);
-            setColumns({ ...columns, [source.droppableId]: { ...sourceColumn, items: sourceItems } });
-        }
-    };
-
-    const handleOpenEditModal = (task: Task) => {
-        setEditingTask(task);
-        setEditTitle(task.title);
-        setEditDesc(task.description || '');
-        const initialProgress = task.status === 'DONE' ? 100 : (task.progress || 0);
-        setEditProgress(initialProgress);
-        setEditPriority(task.priority);
-        setEditDueDate(task.dueDate ? task.dueDate.split('T')[0] : '');
-        setIsEditModalOpen(true);
-        fetchComments(task.projectId, task.id);
-        fetchSubTasks(task.id); 
+        try {
+            const token = localStorage.getItem('token');
+            await axios.patch(`http://localhost:8081/api/subtasks/${subId}/toggle`, 
+                { isDone: !isDone },
+                { headers: { Authorization: `Bearer ${token}` } }
+            );
+            await fetchSubTasks(editingTask!.id);
+            await fetchData(); 
+        } catch (error) { alert("Lỗi cập nhật subtask"); }
     };
 
     const fetchComments = async (projectId: number, taskId: number) => {
         try {
             const token = localStorage.getItem('token');
-            const res = await axios.get(`http://localhost:8081/api/project/${projectId}/tasks/${taskId}/comments`, {
-                headers: { Authorization: `Bearer ${token}` }
-            });
+            const res = await axios.get(`http://localhost:8081/api/project/${projectId}/tasks/${taskId}/comments`, { headers: { Authorization: `Bearer ${token}` } });
             setComments(res.data);
         } catch (error) { console.error(error); }
     };
@@ -240,6 +152,90 @@ export default function MyTasks() {
         } catch (error) { alert("Lỗi gửi bình luận"); }
     };
 
+    // --- KANBAN KÉO THẢ (Giữ nguyên) ---
+    const onDragEnd = async (result: DropResult) => {
+        if (!result.destination) return;
+        const { source, destination, draggableId } = result;
+        if (source.droppableId === destination.droppableId && source.index === destination.index) return;
+
+        const sourceColumn = columns[source.droppableId];
+        const destColumn = columns[destination.droppableId];
+        const draggableTask = sourceColumn.items[source.index];
+
+        if (destination.droppableId === 'DONE') {
+            const userRole = projectsMap[draggableTask.projectId]?.role;
+            if (userRole !== 'OWNER' && userRole !== 'MANAGER') {
+                alert("Chỉ Quản lý có quyền duyệt sang Đã xong!");
+                return;
+            }
+        }
+
+        const sourceItems = [...sourceColumn.items];
+        const destItems = [...destColumn.items];
+        const [removed] = sourceItems.splice(source.index, 1);
+
+        if (source.droppableId !== destination.droppableId) {
+            removed.status = destination.droppableId;
+            if (destination.droppableId === 'DONE') removed.progress = 100;
+            destItems.splice(destination.index, 0, removed);
+            setColumns({
+                ...columns,
+                [source.droppableId]: { ...sourceColumn, items: sourceItems },
+                [destination.droppableId]: { ...destColumn, items: destItems },
+            });
+            try {
+                const token = localStorage.getItem('token');
+                await axios.patch(`http://localhost:8081/api/project/${draggableTask.projectId}/tasks/${draggableId}/status`,
+                    { status: destination.droppableId },
+                    { headers: { Authorization: `Bearer ${token}` } }
+                );
+                fetchData();
+            } catch (error) { fetchData(); }
+        } else {
+            sourceItems.splice(destination.index, 0, removed);
+            setColumns({ ...columns, [source.droppableId]: { ...sourceColumn, items: sourceItems } });
+        }
+    };
+
+    // --- HÀM MỚI: CLICK CHECKBOX Ở DANH SÁCH SẼ GỌI API ---
+    const handleToggleTaskCompleteList = async (e: React.MouseEvent, task: Task) => {
+        e.stopPropagation(); // Tránh bị mở Edit Modal khi bấm checkbox
+        
+        if (task.status !== 'DONE') {
+            const userRole = projectsMap[task.projectId]?.role;
+            if (userRole !== 'OWNER' && userRole !== 'MANAGER') {
+                alert("Chỉ Quản lý dự án mới có quyền duyệt Task sang Đã xong!");
+                return;
+            }
+        }
+
+        const newStatus = task.status === 'DONE' ? 'TODO' : 'DONE';
+        
+        try {
+            const token = localStorage.getItem('token');
+            await axios.patch(`http://localhost:8081/api/project/${task.projectId}/tasks/${task.id}/status`,
+                { status: newStatus },
+                { headers: { Authorization: `Bearer ${token}` } }
+            );
+            fetchData(); 
+        } catch (error) {
+            alert("Lỗi cập nhật trạng thái!");
+        }
+    };
+
+    // --- MODAL ---
+    const handleOpenEditModal = (task: Task) => {
+        setEditingTask(task);
+        setEditTitle(task.title);
+        setEditDesc(task.description || '');
+        setEditProgress(task.status === 'DONE' ? 100 : (task.progress || 0));
+        setEditPriority(task.priority);
+        setEditDueDate(task.dueDate ? task.dueDate.split('T')[0] : '');
+        setIsEditModalOpen(true);
+        fetchComments(task.projectId, task.id);
+        fetchSubTasks(task.id); 
+    };
+
     const handleUpdateTask = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!editingTask) return;
@@ -249,109 +245,179 @@ export default function MyTasks() {
             const finalProgress = editingTask.status === 'DONE' ? 100 : editProgress;
 
             await axios.put(`http://localhost:8081/api/project/${editingTask.projectId}/tasks/${editingTask.id}`, {
-                title: editTitle, 
-                description: editDesc, 
-                progress: finalProgress,
-                priority: editPriority, 
-                dueDate: editDueDate ? new Date(editDueDate).toISOString() : null,
+                title: editTitle, description: editDesc, progress: finalProgress,
+                priority: editPriority, dueDate: editDueDate ? new Date(editDueDate).toISOString() : null,
             }, { headers: { Authorization: `Bearer ${token}` } });
             
             setIsEditModalOpen(false);
             fetchData();
-        } catch (error) { 
-            alert("Lỗi cập nhật"); 
-        } finally { 
-            setIsUpdating(false); 
-        }
+        } catch (error) { alert("Lỗi cập nhật"); } 
+        finally { setIsUpdating(false); }
     };
 
     const getPriorityStyle = (priority: string) => {
         switch (priority) {
             case 'HIGH': return 'bg-rose-100 text-rose-700 border-rose-200';
             case 'URGENT': return 'bg-red-100 text-red-800 border-red-300';
+            case 'MEDIUM': return 'bg-orange-100 text-orange-700 border-orange-200';
             default: return 'bg-blue-100 text-blue-700 border-blue-200';
         }
     };
 
+    // Chuẩn bị dữ liệu cho chế độ hiển thị Danh sách
+    const allTasksList = [...columns.TODO.items, ...columns.IN_PROGRESS.items, ...columns.REVIEW.items, ...columns.DONE.items];
+    const filteredTasksList = activeTab === 'all' ? allTasksList : allTasksList.filter(t => t.status === activeTab);
+
     if (isLoading) return <div className="h-screen flex items-center justify-center text-blue-600 font-bold animate-pulse">SẴN SÀNG...</div>;
 
     return (
-        <div className="h-full flex flex-col p-6 bg-[#f4f7f9] overflow-hidden">
-            <div className="mb-8 px-2">
-                <h1 className="text-4xl font-black text-slate-900 tracking-tight">Công việc của tôi</h1>
-                <p className="text-slate-500 font-medium mt-1">Kéo thả thẻ để cập nhật trạng thái nhiệm vụ.</p>
+        <div className="h-full flex flex-col p-6 bg-[#f4f7f9] min-h-screen">
+            {/* HEADER & VIEW TOGGLES */}
+            <div className="flex justify-between items-start mb-8 px-2">
+                <div>
+                    <h1 className="text-4xl font-black text-slate-900 tracking-tight">Công việc của tôi</h1>
+                    <p className="text-slate-500 font-medium mt-1">Quản lý và theo dõi nhiệm vụ của bạn</p>
+                </div>
+                
+                <div className="flex bg-white p-1 rounded-xl border border-slate-200 shadow-sm">
+                    <button onClick={() => setViewMode('list')} className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all ${viewMode === 'list' ? 'bg-slate-100 text-blue-600' : 'text-slate-500 hover:text-slate-900'}`}>
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" /></svg>
+                        Danh sách
+                    </button>
+                    <button onClick={() => setViewMode('kanban')} className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all ${viewMode === 'kanban' ? 'bg-slate-100 text-blue-600' : 'text-slate-500 hover:text-slate-900'}`}>
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2" /></svg>
+                        Kanban
+                    </button>
+                </div>
             </div>
 
-            <DragDropContext onDragEnd={onDragEnd}>
-                <div className="flex gap-6 h-full overflow-x-auto pb-8 items-start px-2 custom-scrollbar">
-                    {Object.entries(columns).map(([columnId, column]) => (
-                        <div key={columnId} className="flex flex-col bg-white rounded-[2rem] min-w-[300px] w-[300px] max-h-[calc(100vh-200px)] border border-slate-200 shadow-md overflow-hidden">
-                            <div className="p-5 font-black text-[11px] uppercase tracking-[0.2em] flex justify-between items-center bg-slate-50 border-b border-slate-200">
-                                <div className="flex items-center gap-2.5 text-slate-700">
-                                    <div className={`w-2.5 h-2.5 rounded-full ${
-                                        columnId === 'TODO' ? 'bg-slate-400' :
-                                        columnId === 'IN_PROGRESS' ? 'bg-blue-500 shadow-[0_0_10px_rgba(59,130,246,0.3)]' :
-                                        columnId === 'REVIEW' ? 'bg-purple-500 shadow-[0_0_10px_rgba(168,85,247,0.3)]' : 'bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.3)]'
-                                    }`}></div>
-                                    {column.name}
-                                </div>
-                                <span className="bg-slate-200 px-2.5 py-0.5 rounded-full text-slate-600 font-bold">{column.items.length}</span>
-                            </div>
+            {/* --- VIEW MODE: LIST --- */}
+            {viewMode === 'list' && (
+                <div className="flex flex-col ">
+                    <div className="flex gap-6 border-b border-slate-200 mb-6">
+                        {[
+                            { id: 'all', label: `Tất cả (${allTasksList.length})` },
+                            { id: 'TODO', label: `Cần làm (${columns.TODO.items.length})` },
+                            { id: 'IN_PROGRESS', label: `Đang làm (${columns.IN_PROGRESS.items.length})` },
+                            { id: 'REVIEW', label: `Chờ duyệt (${columns.REVIEW.items.length})` },
+                            { id: 'DONE', label: `Đã xong (${columns.DONE.items.length})` }
+                        ].map(tab => (
+                            <button 
+                                key={tab.id} onClick={() => setActiveTab(tab.id)}
+                                className={`pb-4 text-sm font-bold transition-all border-b-2 ${activeTab === tab.id ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-500 hover:text-slate-800'}`}
+                            >
+                                {tab.label}
+                            </button>
+                        ))}
+                    </div>
 
-                            <Droppable droppableId={columnId}>
-                                {(provided, snapshot) => (
-                                    <div {...provided.droppableProps} ref={provided.innerRef} className={`p-4 min-h-[450px] overflow-y-auto custom-scrollbar transition-all ${snapshot.isDraggingOver ? 'bg-blue-50/30' : 'bg-transparent'}`}>
-                                        {column.items.map((item, index) => (
-                                            <Draggable key={item.id.toString()} draggableId={item.id.toString()} index={index}>
-                                                {(provided, snapshot) => (
-                                                    <div ref={provided.innerRef} {...provided.draggableProps} {...provided.dragHandleProps}
-                                                        onClick={() => handleOpenEditModal(item)}
-                                                        className={`p-5 mb-5 rounded-3xl bg-white border border-slate-200 transition-all duration-300 cursor-pointer group
-                                                            ${snapshot.isDragging 
-                                                                ? 'rotate-2 scale-105 shadow-2xl border-blue-400 z-50' 
-                                                                : 'shadow-sm hover:shadow-xl hover:-translate-y-1 hover:border-blue-300'
-                                                            }`}
-                                                    >
-                                                        <div className="flex justify-between items-start mb-4">
-                                                            <span className="text-[9px] font-black text-blue-600 bg-blue-50 px-2 py-0.5 rounded-lg uppercase tracking-wider border border-blue-100">
-                                                                {projectsMap[item.projectId]?.name || 'Project'}
-                                                            </span>
-                                                            <span className={`text-[9px] font-black px-2 py-0.5 rounded-lg border ${getPriorityStyle(item.priority)}`}>
-                                                                {item.priority}
-                                                            </span>
-                                                        </div>
-                                                        <h3 className="text-slate-800 font-bold text-sm mb-4 leading-relaxed group-hover:text-blue-600 transition-colors">{item.title}</h3>
-                                                        <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden mb-5">
-                                                            <div 
-                                                                className={`h-full transition-all duration-700 ${
-                                                                    item.status === 'DONE' || item.progress === 100 ? 'bg-emerald-500' : 'bg-blue-600'
-                                                                }`} 
-                                                                style={{ width: `${item.status === 'DONE' ? 100 : item.progress}%` }}
-                                                            ></div>
-                                                        </div>
-                                                        <div className="flex justify-between items-center text-slate-400 border-t border-slate-50 pt-3">
-                                                            <span className="text-[10px] font-bold">{item.dueDate ? new Date(item.dueDate).toLocaleDateString('vi-VN') : 'N/A'}</span>
-                                                            <div className="w-7 h-7 rounded-xl bg-slate-900 flex items-center justify-center text-white text-[10px] font-black uppercase shadow-md">
-                                                                {allUsers.find(u => u.id === item.assigneeId)?.name?.charAt(0) || "?"}
+                    <div className="space-y-4">
+                        {filteredTasksList.map(task => (
+                            <div key={task.id} onClick={() => handleOpenEditModal(task)} className={`flex items-center justify-between p-5 rounded-xl border transition-all cursor-pointer ${task.status === 'DONE' ? 'bg-slate-50 border-slate-100 opacity-60' : 'bg-white border-slate-200 hover:shadow-md hover:border-blue-300'}`}>
+                                <div className="flex items-start gap-4">
+                                    <button 
+                                        onClick={(e) => handleToggleTaskCompleteList(e, task)}
+                                        className={`mt-1 flex items-center justify-center w-6 h-6 rounded-md border-2 transition-all ${task.status === 'DONE' ? 'bg-emerald-500 border-emerald-500' : 'border-slate-300 hover:border-slate-400'}`}
+                                    >
+                                        {task.status === 'DONE' && <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>}
+                                    </button>
+                                    
+                                    <div>
+                                        <h3 className={`font-bold text-slate-900 text-[15px] ${task.status === 'DONE' ? 'line-through text-slate-500' : ''}`}>{task.title}</h3>
+                                        <div className="text-xs font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-md inline-block mt-2 border border-blue-100">{projectsMap[task.projectId]?.name || 'Dự án'}</div>
+                                        <div className="flex items-center gap-5 mt-3 text-xs font-medium">
+                                            <span className="flex items-center gap-1.5 text-slate-500">
+                                                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
+                                                {allUsers.find(u => u.id === task.assigneeId)?.name || 'Chưa giao'}
+                                                </span> 
+                                                <span className={`flex items-center gap-1.5 ${task.dueDate && task.status !== 'DONE' ? 'text-rose-500 font-bold' : 'text-slate-400'}`}>
+                                                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                                                    {task.dueDate ? new Date(task.dueDate).toLocaleDateString('vi-VN') : 'Chưa có hạn'}
+                                                </span>
+                                            </div>
+                                    </div>
+                                </div>
+                                <div className="flex items-center gap-5 mt-3 text-xs text-slate-500 font-medium">
+                                    {/* <span className="flex items-center gap-1 text-xs text-slate-500 font-medium">
+                                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
+                                        {allUsers.find(u => u.id === task.assigneeId)?.name || 'Chưa giao'}
+                                    </span> */}
+                                    <span className={`px-3 py-1 rounded-lg text-[10px] font-black tracking-wider ${getPriorityStyle(task.priority)}`}>{task.priority}</span>
+                                </div>
+                            </div>
+                        ))}
+                        {filteredTasksList.length === 0 && <div className="text-center py-10 text-slate-400 font-medium">Không có công việc nào trong mục này.</div>}
+                    </div>
+                </div>
+            )}
+
+            {/* --- VIEW MODE: KANBAN --- */}
+            {viewMode === 'kanban' && (
+                <DragDropContext onDragEnd={onDragEnd}>
+                    <div className="flex gap-6 h-full overflow-x-auto pb-8 items-start px-2 custom-scrollbar">
+                        {Object.entries(columns).map(([columnId, column]) => (
+                            <div key={columnId} className="flex flex-col bg-white rounded-[2rem] min-w-[300px] w-[300px] max-h-[calc(100vh-200px)] border border-slate-200 shadow-sm overflow-hidden">
+                                <div className="p-5 font-black text-[11px] uppercase tracking-[0.2em] flex justify-between items-center bg-slate-50 border-b border-slate-200">
+                                    <div className="flex items-center gap-2.5 text-slate-700">
+                                        <div className={`w-2.5 h-2.5 rounded-full ${
+                                            columnId === 'TODO' ? 'bg-slate-400' :
+                                            columnId === 'IN_PROGRESS' ? 'bg-blue-500 shadow-[0_0_10px_rgba(59,130,246,0.3)]' :
+                                            columnId === 'REVIEW' ? 'bg-orange-500 shadow-[0_0_10px_rgba(249,115,22,0.3)]' : 'bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.3)]'
+                                        }`}></div>
+                                        {column.name}
+                                    </div>
+                                    <span className="bg-slate-200 px-2.5 py-0.5 rounded-full text-slate-600 font-bold">{column.items.length}</span>
+                                </div>
+
+                                <Droppable droppableId={columnId}>
+                                    {(provided, snapshot) => (
+                                        <div {...provided.droppableProps} ref={provided.innerRef} className={`p-4 min-h-[450px] overflow-y-auto custom-scrollbar transition-all ${snapshot.isDraggingOver ? 'bg-blue-50/30' : 'bg-transparent'}`}>
+                                            {column.items.map((item, index) => (
+                                                <Draggable key={item.id.toString()} draggableId={item.id.toString()} index={index}>
+                                                    {(provided, snapshot) => (
+                                                        <div ref={provided.innerRef} {...provided.draggableProps} {...provided.dragHandleProps}
+                                                            onClick={() => handleOpenEditModal(item)}
+                                                            className={`p-5 mb-5 rounded-3xl bg-white border border-slate-200 transition-all duration-300 cursor-pointer group ${snapshot.isDragging ? 'rotate-2 scale-105 shadow-2xl border-blue-400 z-50' : 'shadow-sm hover:shadow-xl hover:-translate-y-1 hover:border-blue-300'}`}
+                                                        >
+                                                            <div className="flex justify-between items-start mb-4">
+                                                                <span className="text-[9px] font-black text-blue-600 bg-blue-50 px-2 py-0.5 rounded-lg uppercase tracking-wider border border-blue-100">
+                                                                    {projectsMap[item.projectId]?.name || 'Project'}
+                                                                </span>
+                                                                <span className={`text-[9px] font-black px-2 py-0.5 rounded-lg border ${getPriorityStyle(item.priority)}`}>
+                                                                    {item.priority}
+                                                                </span>
+                                                            </div>
+                                                            <h3 className="text-slate-800 font-bold text-sm mb-4 leading-relaxed group-hover:text-blue-600 transition-colors">{item.title}</h3>
+                                                            
+                                                            <div className="flex justify-between items-center text-slate-400 border-t border-slate-50 pt-3">
+                                                                <span className="text-[10px] font-bold flex items-center gap-1">
+                                                                    <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                                                                    {item.dueDate ? new Date(item.dueDate).toLocaleDateString('vi-VN') : 'N/A'}
+                                                                </span>
+                                                                <div className="flex items-center gap-2">
+                                                                    <div className="w-7 h-7 rounded-xl bg-slate-900 flex items-center justify-center text-white text-[10px] font-black uppercase shadow-md">
+                                                                        {allUsers.find(u => u.id === item.assigneeId)?.name?.charAt(0) || "?"}
+                                                                    </div>
+                                                                </div>
                                                             </div>
                                                         </div>
-                                                    </div>
-                                                )}
-                                            </Draggable>
-                                        ))}
-                                        {provided.placeholder}
-                                    </div>
-                                )}
-                            </Droppable>
-                        </div>
-                    ))}
-                </div>
-            </DragDropContext>
+                                                    )}
+                                                </Draggable>
+                                            ))}
+                                            {provided.placeholder}
+                                        </div>
+                                    )}
+                                </Droppable>
+                            </div>
+                        ))}
+                    </div>
+                </DragDropContext>
+            )}
 
+            {/* --- MODAL CHỈNH SỬA TASK--- */}
             {isEditModalOpen && editingTask && (
                 <div className="fixed inset-0 z-[100] flex items-center justify-center bg-white/70 backdrop-blur-md p-4 animate-in fade-in duration-300">
                     <div className="bg-white rounded-[3rem] shadow-[0_32px_64px_-12px_rgba(0,0,0,0.15)] w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col border border-slate-200">
-                        
                         <div className="p-8 border-b border-slate-100 flex justify-between items-center">
                             <div>
                                 <h2 className="text-2xl font-black text-slate-900 tracking-tight">{editingTask.title}</h2>
@@ -372,7 +438,6 @@ export default function MyTasks() {
                                         <textarea value={editDesc} onChange={(e) => setEditDesc(e.target.value)} rows={3} className="w-full text-sm text-slate-700 bg-slate-50 border border-slate-200 rounded-[1.2rem] px-6 py-4 focus:ring-2 focus:ring-blue-200 outline-none transition-all resize-none" />
                                     </div>
                                     
-                                    {/* --- PHẦN CHECKLIST MỚI THÊM --- */}
                                     <div className="mt-8">
                                         <div className="flex justify-between items-center mb-4">
                                             <label className="text-[11px] font-black text-slate-600 uppercase tracking-widest block">Việc cần làm</label>
@@ -382,12 +447,8 @@ export default function MyTasks() {
                                         </div>
                                         <div className="flex gap-2 mb-4">
                                             <input 
-                                                type="text" 
-                                                value={newSubContent}
-                                                onChange={(e) => setNewSubContent(e.target.value)}
-                                                onKeyDown={(e) => e.key === 'Enter' && handleAddSubTask()}
-                                                placeholder="Thêm đầu việc mới..."
-                                                className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs outline-none focus:ring-2 focus:ring-blue-100"
+                                                type="text" value={newSubContent} onChange={(e) => setNewSubContent(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleAddSubTask()}
+                                                placeholder="Thêm đầu việc mới..." className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs outline-none focus:ring-2 focus:ring-blue-100"
                                             />
                                             <button onClick={handleAddSubTask} className="bg-blue-600 text-white px-4 rounded-xl font-black text-[10px] uppercase shadow-md active:scale-95 transition">Thêm</button>
                                         </div>
@@ -395,9 +456,7 @@ export default function MyTasks() {
                                             {subTasks.map(sub => (
                                                 <div key={sub.id} className="flex items-center gap-3 p-3 bg-slate-50 border border-slate-100 rounded-2xl group transition-all hover:border-blue-200">
                                                     <input 
-                                                        type="checkbox" 
-                                                        checked={sub.isDone || sub.done || false}
-                                                        onChange={() => handleToggleSub(sub.id, sub.isDone || sub.done || false)}
+                                                        type="checkbox" checked={sub.isDone || sub.done || false} onChange={() => handleToggleSub(sub.id, sub.isDone || sub.done || false)}
                                                         className="w-4 h-4 rounded border-slate-300 text-blue-600 cursor-pointer"
                                                     />
                                                     <span className={`text-xs font-bold flex-1 ${(sub.isDone || sub.done) ? 'text-slate-300 line-through' : 'text-slate-600'}`}>{sub.content}</span>
@@ -410,34 +469,16 @@ export default function MyTasks() {
                                 <div className="grid grid-cols-2 gap-6 mt-8">
                                     <div className="bg-slate-50 p-6 rounded-[2rem] border border-slate-200">
                                         <div className="flex justify-between items-center mb-4"><span className="text-[11px] font-black text-slate-600 uppercase">Tiến độ</span>
-                                        <span className={`text-sm font-black px-2 py-1 rounded-lg border shadow-sm transition-colors ${
-                                            (editingTask.status === 'DONE' || editProgress === 100) 
-                                            ? 'text-emerald-700 bg-emerald-50 border-emerald-200'
-                                            : 'text-blue-700 bg-white border-slate-200' 
-                                        }`}>
+                                        <span className={`text-sm font-black px-2 py-1 rounded-lg border shadow-sm transition-colors ${(editingTask.status === 'DONE' || editProgress === 100) ? 'text-emerald-700 bg-emerald-50 border-emerald-200' : 'text-blue-700 bg-white border-slate-200'}`}>
                                             {editingTask.status === 'DONE' ? '100%' : `${editProgress}%`}
                                         </span>
                                         </div>
                                         <input 
-                                            type="range" min="0" max="100" 
-                                            step={subTasks.length > 0 ? 1 : 50}
-                                            value={editingTask.status === 'DONE' ? 100 : editProgress} 
-                                            disabled={subTasks.length > 0 || editingTask.status === 'DONE'} 
+                                            type="range" min="0" max="100" step={subTasks.length > 0 ? 1 : 50}
+                                            value={editingTask.status === 'DONE' ? 100 : editProgress} disabled={subTasks.length > 0 || editingTask.status === 'DONE'} 
                                             onChange={(e) => setEditProgress(Number(e.target.value))} 
-                                            className={`w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer shadow-inner transition-all ${
-                                                (editingTask.status === 'DONE' || editProgress === 100) 
-                                                ? 'accent-emerald-500' 
-                                                : 'accent-blue-600' 
-                                            } ${subTasks.length > 0 ? 'opacity-40 cursor-not-allowed' : ''}`} 
-                                            style={{
-                                                background: `linear-gradient(to right, 
-                                                    ${(editingTask.status === 'DONE' || editProgress === 100) ? '#10b981' : '#2563eb'} 0%, 
-                                                    ${(editingTask.status === 'DONE' || editProgress === 100) ? '#10b981' : '#2563eb'} ${editingTask.status === 'DONE' ? 100 : editProgress}%, 
-                                                    #e2e8f0 ${editingTask.status === 'DONE' ? 100 : editProgress}%, 
-                                                    #e2e8f0 100%)`
-                                            }}
+                                            className={`w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer shadow-inner transition-all ${(editingTask.status === 'DONE' || editProgress === 100) ? 'accent-emerald-500' : 'accent-blue-600'} ${subTasks.length > 0 ? 'opacity-40 cursor-not-allowed' : ''}`} 
                                         />
-                                        {subTasks.length > 0 && <p className="text-[9px] text-blue-500 font-bold mt-2 italic">Tiến độ tự động theo checklist</p>}
                                     </div>
                                     <div className="bg-slate-50 p-6 rounded-[2rem] border border-slate-200">
                                         <span className="text-[11px] font-black text-slate-600 uppercase block mb-3">Mức độ ưu tiên</span>
@@ -460,7 +501,6 @@ export default function MyTasks() {
                                             </div>
                                         </div>
                                     ))}
-                                    {comments.length === 0 && <div className="text-center py-10 text-[10px] font-black text-slate-400 uppercase tracking-tighter">Chưa có thảo luận nào</div>}
                                 </div>
                                 <div className="p-6 bg-white border-t border-slate-200 flex gap-3">
                                     <input type="text" value={commentText} onChange={(e) => setCommentText(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleSendComment()} placeholder="Phản hồi..." className="flex-1 bg-slate-50 border border-slate-200 rounded-2xl px-5 py-3 text-xs outline-none focus:ring-2 focus:ring-blue-100 transition-all" />
