@@ -4,7 +4,6 @@ import jakarta.persistence.*;
 import java.time.LocalDateTime;
 import lombok.Getter;
 import lombok.Setter;
-import java.util.Map;
 @Entity
 @Table(name = "comments")
 @Getter

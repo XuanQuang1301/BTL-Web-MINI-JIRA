@@ -49,41 +49,42 @@ public class TaskService {
     private CommentRepository commentRepository;
 
     public TaskResponse createTask(Integer projectId, CreateTaskRequest req, String requesterEmail) {
-        Project project = projectRepository.findById(projectId)
-                .orElseThrow(() -> new NoSuchElementException("Khong tim thay project id=" + projectId));
+    Project project = projectRepository.findById(projectId)
+            .orElseThrow(() -> new NoSuchElementException("Không tìm thấy project id=" + projectId));
+    if (!isOwner(project, requesterEmail)) {
+        throw new AccessDeniedException("Bạn không có quyền tạo task trong project này");
+    }
+    User reporter = userRepository.findByEmail(requesterEmail)
+            .orElseThrow(() -> new IllegalStateException("Không tìm thấy user: " + requesterEmail));
 
-        if (!isOwner(project, requesterEmail)) {
-            throw new AccessDeniedException("Ban khong co quyen tao task trong project nay");
-        }
-
-        User reporter = userRepository.findByEmail(requesterEmail)
-                .orElseThrow(() -> new IllegalStateException("Khong tim thay user: " + requesterEmail));
-
+    Task task = new Task();
+    task.setTitle(req.getTitle().trim());
+    task.setDescription(req.getDescription());
+    if (req.getAssigneeEmail() != null && !req.getAssigneeEmail().trim().isEmpty()) {
         String assigneeEmail = req.getAssigneeEmail().trim();
         User assignee = userRepository.findByEmail(assigneeEmail)
-                .orElseThrow(() -> new NoSuchElementException("Khong tim thay user voi email: " + assigneeEmail));
-
+                .orElseThrow(() -> new NoSuchElementException("Không tìm thấy user với email: " + assigneeEmail));
         if (!isOwner(project, assignee.getEmail()) && !isActiveMember(project.getId(), assignee.getId())) {
-            throw new IllegalStateException("Nguoi duoc giao khong la thanh vien cua project");
+            throw new IllegalStateException("Người được giao không là thành viên của project");
         }
-
-        Task task = new Task();
-        task.setTitle(req.getTitle().trim());
-        task.setDescription(req.getDescription());
-        if (req.getPriority() != null && !req.getPriority().trim().isEmpty()) {
-            task.setPriority(req.getPriority().trim());
-        }
-        task.setEstimatedHours(req.getEstimatedHours());
-        task.setDueDate(req.getDueDate());
-        task.setProject(project);
-        task.setAssignee(assignee);
-        task.setReporter(reporter);
-        task.setCreatedAt(LocalDateTime.now());
-        task.setUpdatedAt(LocalDateTime.now());
-
-        Task saved = taskRepository.save(task);
-        return toResponse(saved);
+        task.setAssignee(assignee); 
     }
+    if (req.getPriority() != null && !req.getPriority().trim().isEmpty()) {
+        task.setPriority(req.getPriority().trim().toUpperCase());
+    } else {
+        task.setPriority("MEDIUM");
+    }
+    task.setStatus("TODO"); 
+    task.setProgress(0);   
+    task.setEstimatedHours(req.getEstimatedHours());
+    task.setDueDate(req.getDueDate());
+    task.setProject(project);
+    task.setReporter(reporter); 
+    task.setCreatedAt(LocalDateTime.now());
+    task.setUpdatedAt(LocalDateTime.now());
+    Task saved = taskRepository.save(task);
+    return toResponse(saved);
+}
 
     public List<TaskResponse> listMyTasks(Integer projectId, String requesterEmail) {
         Project project = projectRepository.findById(projectId)

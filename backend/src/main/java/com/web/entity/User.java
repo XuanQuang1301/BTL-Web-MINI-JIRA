@@ -27,7 +27,7 @@ public class User {
 
     @Column(nullable = false)
     private String password;
-
+    @Column(name = "avatar_url", length = 500)
     private String avatarUrl;
 
     @Column(nullable = false, updatable = false)
@@ -42,7 +42,8 @@ public class User {
 
     @OneToMany(mappedBy = "reporter")
     private List<Task> reportedTasks;
-
+    @Column(name = "phone_number", length = 15)
+    private String phoneNumber;
     @Override
     public String toString() {
         return "User [id=" + id + ", name=" + name + ", email=" + email + ", password=" + password + ", avatarUrl="

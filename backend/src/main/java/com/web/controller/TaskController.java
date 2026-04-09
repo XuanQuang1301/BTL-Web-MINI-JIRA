@@ -1,7 +1,4 @@
 package com.web.controller;
-
-import com.web.dto.comment.CommentResponse;
-import com.web.dto.comment.CreateCommentRequest;
 import com.web.dto.task.CreateTaskRequest;
 import com.web.dto.task.TaskHistoryResponse;
 import com.web.dto.task.TaskResponse;
@@ -41,6 +38,7 @@ public class TaskController {
             @Valid @RequestBody CreateTaskRequest request,
             Authentication auth) {
         TaskResponse created = taskService.createTask(projectId, request, auth.getName());
+        
         URI location = ServletUriComponentsBuilder
                 .fromCurrentContextPath()
                 .path("/api/project/{projectId}/tasks/{taskId}")

@@ -45,15 +45,15 @@ public class Task {
     private LocalDateTime updatedAt;
     
     @ManyToOne
-    @JoinColumn(name = "project_id")
+    @JoinColumn(name = "projectId")
     private Project project;
 
     @ManyToOne
-    @JoinColumn(name = "assignee_id")
+    @JoinColumn(name = "assigneeId")
     private User assignee;
 
     @ManyToOne
-    @JoinColumn(name = "reporter_id", nullable = false)
+    @JoinColumn(name = "reporterId")
     private User reporter;
 
     @OneToMany(mappedBy = "task")

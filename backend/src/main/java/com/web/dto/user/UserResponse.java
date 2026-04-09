@@ -8,4 +8,5 @@ public class UserResponse {
     private String email;
     private String avatarUrl;
     private LocalDateTime createAt; 
+    private String phoneNumber;
 }

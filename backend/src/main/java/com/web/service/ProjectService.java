@@ -57,6 +57,12 @@ public class ProjectService {
         p.setOwner(owner);
 
         Project saved = projectRepository.save(p);
+        ProjectMember newMember = new ProjectMember(); 
+        newMember.setProject(saved);
+        newMember.setUser(owner);
+        newMember.setRole("OWNER"); 
+        newMember.setJoinedAt(LocalDateTime.now());
+        projectMemberRepository.save(newMember); 
         return toResponse(saved);
     }
 

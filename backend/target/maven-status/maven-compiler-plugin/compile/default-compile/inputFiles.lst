@@ -8,6 +8,7 @@ D:\PTIT\Ki_2_Nam_3\Lap_Trinh_WEB\WEB-PROJECT\backend\src\main\java\com\web\dto\p
 D:\PTIT\Ki_2_Nam_3\Lap_Trinh_WEB\WEB-PROJECT\backend\src\main\java\com\web\dto\subtask\SubTaskResponse.java
 D:\PTIT\Ki_2_Nam_3\Lap_Trinh_WEB\WEB-PROJECT\backend\src\main\java\com\web\controller\SubtaskController.java
 D:\PTIT\Ki_2_Nam_3\Lap_Trinh_WEB\WEB-PROJECT\backend\src\main\java\com\web\repository\TaskRepository.java
+D:\PTIT\Ki_2_Nam_3\Lap_Trinh_WEB\WEB-PROJECT\backend\src\main\java\com\web\config\CloudinaryConfig.java
 D:\PTIT\Ki_2_Nam_3\Lap_Trinh_WEB\WEB-PROJECT\backend\src\main\java\com\web\controller\UserController.java
 D:\PTIT\Ki_2_Nam_3\Lap_Trinh_WEB\WEB-PROJECT\backend\src\main\java\com\web\entity\TaskHistory.java
 D:\PTIT\Ki_2_Nam_3\Lap_Trinh_WEB\WEB-PROJECT\backend\src\main\java\com\web\controller\CommentController.java
