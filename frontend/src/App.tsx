@@ -1,38 +1,44 @@
-import { Routes, Route, Navigate } from 'react-router-dom';
-import Register from './pages/Register';
-import Login from './pages/Login';
-import Dashboard from './pages/Dashboard';
-import Layout from './components/Layout';
-import Projects from './pages/Projects'; 
-import ProjectDetail from './pages/ProjectDetail';
-import MyTasks from './pages/MyTasks';
-import Profile from './pages/Profile';
-import UserManagement from './pages/UserManagement'; 
+import { Routes, Route, Navigate } from "react-router-dom";
+import Register from "./pages/Register";
+import Login from "./pages/Login";
+import Dashboard from "./pages/Dashboard";
+import Layout from "./components/Layout";
+import Projects from "./pages/Projects";
+import ProjectDetail from "./pages/ProjectDetail";
+import MyTasks from "./pages/MyTasks";
+import Profile from "./pages/Profile";
+import UserManagement from "./pages/UserManagement";
+import Timeline from "./pages/Timeline";
 
 function App() {
-    const isAuthenticated = !!localStorage.getItem('token');
+  const isAuthenticated = !!localStorage.getItem("token");
 
-    return (
-        <Routes>
-            <Route path="/login" element={<Login />} />
-            <Route path="/register" element={<Register />} />
-            <Route 
-                path="/" 
-                element={isAuthenticated ? <Navigate to="/dashboard" /> : <Navigate to="/login" />} 
-            />
-            <Route element={isAuthenticated ? <Layout /> : <Navigate to="/login" />}>
-                <Route path="/dashboard" element={<Dashboard />} /> 
-                <Route path="/projects" element={<Projects />} /> 
-                <Route path="/projects/:id" element={<ProjectDetail />} /> 
-                <Route path="/tasks" element={<MyTasks />} /> 
-                <Route path="/profile" element={<Profile />} />
-                <Route path="/timeline" element={<UserManagement />} />
-                <Route path="/users" element={<UserManagement />} />
-
-            </Route>
-            <Route path="*" element={<Navigate to="/" />} />
-        </Routes>
-    );
+  return (
+    <Routes>
+      <Route path="/login" element={<Login />} />
+      <Route path="/register" element={<Register />} />
+      <Route
+        path="/"
+        element={
+          isAuthenticated ? (
+            <Navigate to="/dashboard" />
+          ) : (
+            <Navigate to="/login" />
+          )
+        }
+      />
+      <Route element={isAuthenticated ? <Layout /> : <Navigate to="/login" />}>
+        <Route path="/dashboard" element={<Dashboard />} />
+        <Route path="/projects" element={<Projects />} />
+        <Route path="/projects/:id" element={<ProjectDetail />} />
+        <Route path="/tasks" element={<MyTasks />} />
+        <Route path="/timeline" element={<Timeline />} />
+        <Route path="/profile" element={<Profile />} />
+        <Route path="/users" element={<UserManagement />} />
+      </Route>
+      <Route path="*" element={<Navigate to="/" />} />
+    </Routes>
+  );
 }
 
 export default App;
