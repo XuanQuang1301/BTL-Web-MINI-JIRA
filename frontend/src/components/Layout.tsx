@@ -66,8 +66,8 @@ export default function Layout() {
             TimeLine
           </Link>
           {/* Them email day de xem được danh sách user nha  */}
-          {(currentUserEmail === "thuy@gmail.com" ||
-            currentUserEmail === "thuy@gmail.com") && (
+          {(currentUserEmail === "quangxuan1301@gmail.com" ||
+            currentUserEmail === "thuy@gmail.com" || currentUserEmail === "admin@gmail.com") && (
             <Link to="/users" className={getLinkClass("/users")}>
               Danh sách người dùng
             </Link>

@@ -58,6 +58,7 @@ export default function ProjectDetail() {
     // --- STATE CHO CHỨC NĂNG THÊM THÀNH VIÊN ---
     const [showAddMemberModal, setShowAddMemberModal] = useState(false);
     const [newMemberEmail, setNewMemberEmail] = useState('');
+    const [newMemberRole, setNewMemberRole] = useState('MEMBER'); // KHÔI PHỤC STATE CHỌN VAI TRÒ
     const [isAddingMember, setIsAddingMember] = useState(false);
 
     // STATE kiểm soát Dropdown chọn người 
@@ -66,6 +67,29 @@ export default function ProjectDetail() {
     // State lưu danh sách checklist của task đang chọn
     const [subTasks, setSubTasks] = useState<any[]>([]);
     const [newSubContent, setNewSubContent] = useState('');
+    
+    // --- STATE CHO CHỨC NĂNG YÊU CẦU LÀM LẠI (REJECT TASK) ---
+    const [showRejectModal, setShowRejectModal] = useState(false);
+    const [rejectReason, setRejectReason] = useState('');
+    const [isRejecting, setIsRejecting] = useState(false);
+    // --- LẤY ROLE TỪ JWT TOKEN HOẶC LIST MEMBERS ---
+    const myRole = (() => {
+        try {
+            const token = localStorage.getItem('token');
+            if (!token) return 'MEMBER';
+            
+            // Giải mã JWT Token để lấy Email người đang đăng nhập
+            const payload = JSON.parse(atob(token.split('.')[1]));
+            const currentUserEmail = payload.sub;
+
+            // Đối chiếu Email này với danh sách thành viên dự án
+            const me = projectMembersList.find(m => m.userEmail === currentUserEmail || m.userName === currentUserEmail);
+            
+            return me ? me.role : 'MEMBER'; 
+        } catch (error) {
+            return 'MEMBER';
+        }
+    })();
 
     const fetchData = async () => {
         setIsLoading(true); 
@@ -83,7 +107,9 @@ export default function ProjectDetail() {
             setTasks(taskRes.data);
             setProjectMembersList(membersRes.data);
             setAllUsers(allUsersRes.data);
-            if (projectRes.data.role === 'OWNER' || projectRes.data.role === 'MANAGER') {
+            
+            // Sửa logic check quyền hiển thị chuông chờ duyệt dựa trên myRole
+            if (myRole === 'OWNER' || myRole === 'MANAGER') {
                 fetchPendingMembers();
             }
         } catch (error: any) { 
@@ -115,7 +141,6 @@ export default function ProjectDetail() {
 
     useEffect(() => {
         fetchData(); 
-        fetchPendingMembers();
     }, [id]); 
 
     // --- XỬ LÝ DUYỆT THÀNH VIÊN ---
@@ -143,14 +168,15 @@ export default function ProjectDetail() {
         try {
             const token = localStorage.getItem('token');
             await axios.post(`http://localhost:8081/api/project/${id}/members`, 
-                { email: newMemberEmail, role: 'MEMBER' },
+                { email: newMemberEmail, role: newMemberRole }, 
                 { headers: { Authorization: `Bearer ${token}` } }
             );
             
             alert("Đã thêm thành viên thành công!");
             setShowAddMemberModal(false);
             setNewMemberEmail('');            
-            fetchData(); // Load lại danh sách member
+            setNewMemberRole('MEMBER'); 
+            fetchData(); 
         } catch (error: any) {
             console.error(error);
             alert("Lỗi: " + (error.response?.data?.error || "Không thể thêm thành viên này."));
@@ -313,6 +339,52 @@ export default function ProjectDetail() {
         } catch (error) { alert("Lỗi cập nhật"); }
     };
 
+    // --- HÀM DUYỆT TASK (CHUYỂN SANG DONE) ---
+    const handleApproveTask = async (taskId: number) => {
+        try {
+            const token = localStorage.getItem('token');
+            await axios.patch(`http://localhost:8081/api/project/${id}/tasks/${taskId}/status`, 
+                { status: 'DONE' }, 
+                { headers: { Authorization: `Bearer ${token}` } }
+            );
+            alert("Đã duyệt công việc hoàn thành!");
+            setIsDetailOpen(false);
+            fetchData(); 
+        } catch (error: any) {
+            alert("Lỗi khi duyệt: " + (error.response?.data?.error || "Không có quyền thực hiện"));
+        }
+    };
+
+    // --- HÀM SUBMIT YÊU CẦU LÀM LẠI (TỪ MODAL) ---
+    const submitRejectTask = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!rejectReason.trim() || !selectedTask) return;
+
+        setIsRejecting(true);
+        try {
+            const token = localStorage.getItem('token');
+            await axios.patch(`http://localhost:8081/api/project/${id}/tasks/${selectedTask.id}/status`, 
+                { status: 'IN_PROGRESS' }, 
+                { headers: { Authorization: `Bearer ${token}` } }
+            );
+
+            await axios.post(`http://localhost:8081/api/project/${id}/tasks/${selectedTask.id}/comments`, 
+                { content: `YÊU CẦU LÀM LẠI: ${rejectReason}` }, 
+                { headers: { Authorization: `Bearer ${token}` } }
+            );
+            
+            alert("Đã chuyển công việc về lại trạng thái ĐANG LÀM!");
+            setShowRejectModal(false); 
+            setRejectReason(''); 
+            setIsDetailOpen(false); 
+            fetchData(); 
+        } catch (error: any) {
+            alert("Lỗi khi xử lý: " + (error.response?.data?.error || "Không có quyền thực hiện"));
+        } finally {
+            setIsRejecting(false);
+        }
+    };
+
     if (isLoading) return <div className="p-10 text-blue-600 font-black animate-pulse">ĐANG TẢI DỮ LIỆU... </div>;
     if (!project) return <div className="p-10 text-red-500 font-bold">Lỗi: Không tìm thấy dự án!</div>;
 
@@ -326,7 +398,7 @@ export default function ProjectDetail() {
                     <div>
                         <div className="flex items-center gap-4">
                             <h1 className="text-3xl font-black text-gray-900">{project.name}</h1>
-                            <span className="text-[10px] bg-blue-600 text-white px-3 py-1 rounded-full font-black tracking-widest shadow-lg shadow-blue-100 uppercase">{project.role}</span>
+                            <span className="text-[10px] bg-blue-600 text-white px-3 py-1 rounded-full font-black tracking-widest shadow-lg shadow-blue-100 uppercase">{myRole}</span>
                         </div>
                         <p className="text-gray-400 text-sm mt-2 font-medium">{project.description}</p>
                     </div>
@@ -456,7 +528,6 @@ export default function ProjectDetail() {
                                     const assignee = allUsers.find(u => u.id === task.assigneeId);
                                     return (
                                         <tr key={task.id} className="hover:bg-blue-50/20 transition-all group">
-                                            {/* Bỏ w-1/3 ở đây đi vì đã set ở phần thead rồi */}
                                             <td className="p-5 cursor-pointer" onClick={() => handleOpenDetail(task)}>
                                                 <p className="text-gray-900 font-bold text-sm group-hover:text-blue-600 transition-colors">{task.title}</p>
                                                 <p className="text-gray-400 text-xs mt-0.5 line-clamp-1 font-normal">{task.description}</p>
@@ -616,7 +687,6 @@ export default function ProjectDetail() {
                         </table>
                     </div>
                     
-                    {/* Dòng text tổng số ở góc dưới */}
                     <div className="mt-5 px-1 text-[11px] text-slate-500 uppercase tracking-widest font-medium">
                         Tổng số: <span className="font-black text-slate-700">{projectMembersList.length}</span> thành viên hệ thống.
                     </div>
@@ -644,7 +714,20 @@ export default function ProjectDetail() {
                                     className="w-full bg-slate-50 border border-slate-200 rounded-xl px-5 py-3 text-sm font-medium outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
                                     required
                                 />
-                                <p className="text-[11px] text-slate-400 mt-2 font-medium">Người dùng phải có tài khoản trên hệ thống để được mời.</p>
+                            </div>
+
+                            {/* --- Ô CHỌN VAI TRÒ ĐƯỢC KHÔI PHỤC --- */}
+                            <div>
+                                <label className="text-[11px] font-black text-slate-600 uppercase tracking-widest block mb-2">Vai trò trong dự án</label>
+                                <select 
+                                    value={newMemberRole}
+                                    onChange={(e) => setNewMemberRole(e.target.value)}
+                                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all cursor-pointer shadow-sm"
+                                >
+                                    <option value="MEMBER">Thành viên </option>
+                                    <option value="MANAGER">Quản lý dự án </option>
+                                </select>
+                                <p className="text-[11px] text-slate-400 mt-2 font-medium">Lưu ý: Quản lý (Manager) có quyền tạo Task và duyệt thành viên mới.</p>
                             </div>
                             
                             <div className="flex gap-3 pt-2">
@@ -660,7 +743,7 @@ export default function ProjectDetail() {
                 </div>
             )}
 
-            {/* Modal Tạo Task (Giữ nguyên cấu trúc của bạn) */}
+            {/* Modal Tạo Task  */}
             {isModalOpen && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/30 backdrop-blur-sm p-4">
                     <div className="bg-white p-10 rounded-[2.5rem] shadow-2xl w-full max-w-2xl border border-gray-100">
@@ -697,15 +780,46 @@ export default function ProjectDetail() {
                     </div>
                 </div>
             )}
+            {/* Modal Xem chi tiết & Thảo luận */}
             {isDetailOpen && selectedTask && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/40 backdrop-blur-sm p-4">
                     <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-4xl max-h-[85vh] overflow-hidden flex flex-col border border-gray-100">
                         <div className="p-7 border-b border-gray-50 flex justify-between items-center bg-gray-50/30">
-                            <h2 className="text-xl font-black text-gray-900">{selectedTask.title}</h2>
-                            <button onClick={()=>setIsDetailOpen(false)} className="bg-white border w-8 h-8 rounded-full flex items-center justify-center text-gray-400 hover:text-rose-500 hover:bg-rose-50 shadow-sm transition">✕</button>
+
+                            <div className="flex items-center gap-4">
+                                <h2 className="text-xl font-black text-gray-900">{selectedTask.title}</h2>
+                                <span className={`text-[10px] uppercase px-3 py-1 rounded-full font-black border ${getStatusStyle(selectedTask.status)}`}>
+                                    {selectedTask.status}
+                                </span>
+                            </div>
+                            
+                            <div className="flex items-center gap-3">
+                                {/* NÚT DUYỆT VÀ TỪ CHỐI (CHỈ HIỆN KHI REVIEW VÀ LÀ QUẢN LÝ/OWNER) */}
+                                {selectedTask.status === 'REVIEW' && (myRole === 'OWNER' || myRole === 'MANAGER') && (
+                                    <div className="flex items-center gap-2 mr-2 pr-4 border-r border-gray-200">
+                                        <button 
+                                            onClick={() => setShowRejectModal(true)}
+                                            className="bg-white hover:bg-rose-50 text-rose-600 border border-gray-200 hover:border-rose-200 px-3 py-2 rounded-xl text-xs font-black transition-all active:scale-95 flex items-center gap-1.5"
+                                        >
+                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" /></svg>
+                                            Làm lại
+                                        </button>
+                                        <button 
+                                            onClick={() => handleApproveTask(selectedTask.id)}
+                                            className="bg-emerald-500 hover:bg-emerald-600 text-white px-3 py-2 rounded-xl text-xs font-black shadow-md shadow-emerald-100 transition-all active:scale-95 flex items-center gap-1.5"
+                                        >
+                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" /></svg>
+                                            Duyệt
+                                        </button>
+                                    </div>
+                                )}
+
+                                <button onClick={()=>setIsDetailOpen(false)} className="bg-white border w-8 h-8 rounded-full flex items-center justify-center text-gray-400 hover:text-rose-500 hover:bg-rose-50 shadow-sm transition">✕</button>
+                            </div>
                         </div>
+                        
                         <div className="flex-1 flex flex-col md:flex-row overflow-hidden">
-                            <div className="flex-1 p-8 overflow-y-auto space-y-8 border-r border-gray-50">
+                            <div className="flex-1 p-8 overflow-y-auto space-y-8 border-r border-gray-50 custom-scrollbar">
                                 <div>
                                     <label className="text-[10px] font-black text-black-400 uppercase tracking-widest">Mô tả chi tiết</label>
                                     <p className="bg-gray-50 p-6 rounded-2xl text-sm text-gray-600 mt-3 leading-relaxed border border-gray-100">{selectedTask.description}</p>
@@ -718,7 +832,7 @@ export default function ProjectDetail() {
                                             {subTasks.filter(s => s.isDone).length}/{subTasks.length}
                                         </span>
                                     </div>
-                                    <div className="space-y-2 max-h-48 overflow-y-auto pr-2">
+                                    <div className="space-y-2 max-h-48 overflow-y-auto pr-2 custom-scrollbar">
                                         {subTasks.map((sub) => (
                                             <div key={sub.id} className="flex items-center gap-3 p-3 bg-gray-50/50 border border-gray-100 rounded-2xl">
                                                 <input type="checkbox" checked={sub.isDone} disabled={true} className="w-4 h-4 rounded border-gray-300 text-blue-600 cursor-not-allowed opacity-60" />
@@ -764,6 +878,44 @@ export default function ProjectDetail() {
                                 </div>
                             </div>
                         </div>
+                    </div>
+                </div>
+            )}
+            {/* ================= MODAL YÊU CẦU LÀM LẠI (REJECT TASK) ================= */}
+            {showRejectModal && (
+                <div className="fixed inset-0 z-[120] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+                    <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-md overflow-hidden border border-slate-200">
+                        <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-rose-50/50">
+                            <div className="flex items-center gap-2 text-rose-600">
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+                                <h3 className="text-lg font-black tracking-tight">Yêu cầu làm lại</h3>
+                            </div>
+                            <button onClick={() => {setShowRejectModal(false); setRejectReason('');}} className="w-8 h-8 rounded-full bg-white border border-rose-100 text-rose-400 flex items-center justify-center hover:bg-rose-100 hover:text-rose-600 transition-colors shadow-sm">✕</button>
+                        </div>
+                        
+                        <form onSubmit={submitRejectTask} className="p-6 space-y-6">
+                            <div>
+                                <label className="text-[11px] font-black text-slate-600 uppercase tracking-widest block mb-2">Lý do từ chối duyệt</label>
+                                <textarea 
+                                    value={rejectReason} 
+                                    onChange={(e) => setRejectReason(e.target.value)}
+                                    // placeholder="Ví dụ: Giao diện bị lệch, nút bấm chưa hoạt động..."
+                                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-5 py-4 text-sm font-medium outline-none focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 transition-all resize-none"
+                                    rows={4}
+                                    required
+                                />
+                                <p className="text-[11px] text-slate-400 mt-2 font-medium">Lý do này sẽ tự động được gửi vào phần Thảo luận của công việc để nhân sự khắc phục.</p>
+                            </div>
+                            
+                            <div className="flex gap-3 pt-2">
+                                <button type="button" onClick={() => {setShowRejectModal(false); setRejectReason('');}} className="flex-1 px-4 py-3 rounded-xl font-bold text-sm text-slate-600 bg-slate-100 hover:bg-slate-200 transition-colors">
+                                    Hủy
+                                </button>
+                                <button type="submit" disabled={isRejecting} className="flex-1 px-4 py-3 rounded-xl font-bold text-sm text-white bg-rose-600 shadow-lg shadow-rose-200 hover:bg-rose-700 disabled:opacity-50 transition-all flex items-center justify-center gap-2">
+                                    {isRejecting ? 'Đang gửi...' : 'Xác nhận trả về'}
+                                </button>
+                            </div>
+                        </form>
                     </div>
                 </div>
             )}
