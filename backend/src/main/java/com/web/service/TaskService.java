@@ -128,15 +128,14 @@ public class TaskService {
         User requester = userRepository.findByEmail(requesterEmail)
                 .orElseThrow(() -> new IllegalStateException("Khong tim thay user: " + requesterEmail));
 
-        if (task.getAssignee() == null || task.getAssignee().getId() == null
-                || !task.getAssignee().getId().equals(requester.getId())) {
-            throw new AccessDeniedException("Ban chi co the cap nhat trang thai task duoc giao cho minh");
-        }
-
         if (!isOwner(task.getProject(), requesterEmail) && !isActiveMember(projectId, requester.getId())) {
             throw new AccessDeniedException("Ban khong con la thanh vien cua project nay");
         }
-
+        boolean isAssignee = task.getAssignee() != null && task.getAssignee().getId().equals(requester.getId());
+        boolean isProjectOwner = isOwner(task.getProject(), requesterEmail);
+        if (!isAssignee && !isProjectOwner /* && !isManager */) {
+            throw new AccessDeniedException("Loi phan quyen: Chi nguoi duoc giao viec hoac Quan ly moi duoc phep cap nhat!");
+        }
         String newStatus = req.getStatus().trim();
         String oldStatus = task.getStatus();
         boolean statusChanged = oldStatus == null || !oldStatus.equalsIgnoreCase(newStatus);
