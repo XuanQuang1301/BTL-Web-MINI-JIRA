@@ -3,7 +3,6 @@ import com.web.dto.task.CreateTaskRequest;
 import com.web.dto.task.TaskHistoryResponse;
 import com.web.dto.task.TaskResponse;
 import com.web.dto.task.UpdateTaskStatusRequest;
-import com.web.service.CommentService;
 import com.web.service.TaskService;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -28,10 +27,6 @@ public class TaskController {
 
     @Autowired
     private TaskService taskService;
-
-    @Autowired
-    private CommentService commentService;
-
     // POST /api/project/{projectId}/tasks
     @PostMapping("/{projectId}/tasks")
     public ResponseEntity<?> createTask(@PathVariable Integer projectId,

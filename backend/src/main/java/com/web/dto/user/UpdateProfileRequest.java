@@ -1,13 +1,8 @@
 package com.web.dto.user;
-import java.time.LocalDateTime;
 import lombok.Data;
 @Data
-public class UserResponse {
-    private Long id;
+public class UpdateProfileRequest {
     private String name;
-    private String email;
-    private String avatarUrl;
-    private LocalDateTime createAt; 
     private String phoneNumber;
     private String address;
     private String city;

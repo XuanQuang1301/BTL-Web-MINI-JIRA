@@ -44,6 +44,14 @@ public class User {
     private List<Task> reportedTasks;
     @Column(name = "phone_number", length = 15)
     private String phoneNumber;
+    @Column(name = "address", length = 255)
+    private String address;
+
+    @Column(name = "city", length = 100)
+    private String city;
+
+    @Column(name = "state", length = 100)
+    private String state;
     @Override
     public String toString() {
         return "User [id=" + id + ", name=" + name + ", email=" + email + ", password=" + password + ", avatarUrl="

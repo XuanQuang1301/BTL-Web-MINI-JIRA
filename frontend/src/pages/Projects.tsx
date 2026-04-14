@@ -120,7 +120,6 @@ export default function Projects (){
             {isLoading && <p className="text-blue-600 font-medium">Đang tải dữ liệu dự án... ⏳</p>}
             {error && <p className="text-red-500 font-medium">{error}</p>}
 
-            {/* Nếu không có lỗi và đã tải xong, nhưng mảng rỗng */}
             {!isLoading && !error && projects.length === 0 && (
                 <div className="text-center py-16 bg-white rounded-2xl border-2 border-gray-100 border-dashed shadow-sm">
                     <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -166,7 +165,6 @@ export default function Projects (){
                             <h3 className='text-xl font-bold text-gray-800 group-hover:text-blue-600 transition-colors line-clamp-1 pr-2'>
                                 {project.name}
                             </h3>
-                            {/* Đổi màu nhãn (Badge) sang tông sáng */}
                             <span className={`text-[10px] uppercase px-2.5 py-1 rounded-md font-bold shrink-0
                                 ${project.role === 'MENTOR' || project.role === 'OWNER'
                                 ? 'bg-purple-100 text-purple-700 border border-purple-200' 

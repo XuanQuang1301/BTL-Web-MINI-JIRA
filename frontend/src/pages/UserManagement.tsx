@@ -82,7 +82,7 @@ export default function UserManagement() {
                                     </span>
                                 </td>
                                 <td className="p-5 text-center text-[12px] font-bold text-slate-400">
-                                    {user.createAt ? new Date(user.createAt).toLocaleDateString('vi-VN') : "05/03/2026"}
+                                    {user.createAt ? new Date(user.createAt).toLocaleDateString('vi-VN') : "15/04/2026"}
                                 </td>
                                 <td className="p-5 text-right">
                                     <button 

@@ -149,7 +149,6 @@ function isCurrentColumn(
   return String(now.getFullYear()) === label;
 }
 
-// Đổi mã trạng thái sang text hiển thị
 function statusLabel(status: string) {
   if (status === "TODO") return "Cần làm";
   if (status === "IN_PROGRESS") return "Đang làm";
