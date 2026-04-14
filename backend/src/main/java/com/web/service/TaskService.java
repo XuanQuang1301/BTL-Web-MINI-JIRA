@@ -12,6 +12,7 @@ import com.web.entity.User;
 import com.web.repository.CommentRepository;
 import com.web.repository.ProjectMemberRepository;
 import com.web.repository.ProjectRepository;
+import com.web.repository.SubTaskRepository;
 import com.web.repository.TaskHistoryRepository;
 import com.web.repository.TaskRepository;
 import com.web.repository.UserRepository;
@@ -47,6 +48,9 @@ public class TaskService {
 
     @Autowired
     private CommentRepository commentRepository;
+
+    @Autowired
+    private SubTaskRepository subTaskRepository;
 
     public TaskResponse createTask(Integer projectId, CreateTaskRequest req, String requesterEmail) {
     Project project = projectRepository.findById(projectId)
@@ -168,6 +172,7 @@ public class TaskService {
         }
 
         try {
+            subTaskRepository.deleteByTaskId(taskId);
             commentRepository.clearTaskByTaskId(taskId);
             taskHistoryRepository.clearTaskByTaskId(taskId);
             taskRepository.delete(task);
