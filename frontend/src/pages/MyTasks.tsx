@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import type { DropResult } from '@hello-pangea/dnd';
+import AIBreakdownModal from '../components/AIBreakdownModal';
 
 interface Task {
     id: number;
@@ -59,6 +60,11 @@ export default function MyTasks() {
     const [subTasks, setSubTasks] = useState<any[]>([]);
     const [newSubContent, setNewSubContent] = useState('');
 
+    // State cho AI Modal
+    const [showAIModal, setShowAIModal] = useState(false);
+    const [selectedTaskId, setSelectedTaskId] = useState<number | null>(null);
+    const [selectedTaskTitle, setSelectedTaskTitle] = useState<string>('');
+    
     const fetchData = async () => {
         try {
             const token = localStorage.getItem('token');
