@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'; 
 import { useParams, Link, useNavigate } from 'react-router-dom'; 
 import axios from 'axios';
-
+import AIBreakdownModal from '../components/AIBreakdownModal';
 interface Project {
     id: number; 
     name: string; 
@@ -34,6 +34,9 @@ export default function ProjectDetail() {
     
     // --- STATE ĐIỀU HƯỚNG TAB ---
     const [activeTab, setActiveTab] = useState<'tasks' | 'members'>('tasks');
+    
+    // AI
+    const [showAIModal, setShowAIModal] = useState(false);
 
     // --- STATE DÀNH CHO FORM TẠO TASK ---
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -683,123 +686,133 @@ export default function ProjectDetail() {
             
             {/* TAB 1: DANH SÁCH CÔNG VIỆC */}
             {activeTab === 'tasks' && (
-                <div className="bg-white rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-gray-100 overflow-visible mx-2 relative">
-                    <div className="overflow-y-auto max-h-[calc(100vh-350px)] custom-scrollbar pb-32">
-                        <table className="w-full text-left border-collapse">
-                            <thead className="sticky top-0 z-20 bg-gray-50/95 backdrop-blur-sm">
-                                <tr className="border-b border-gray-100 text-gray-400 text-[10px] uppercase tracking-widest shadow-sm">
-                                    <th className="p-5 font-black w-[30%]">Công việc</th>
-                                    <th className="p-5 font-black text-center w-[12%]">Trạng thái</th>
-                                    <th className="p-5 font-black text-center w-[12%]">Ưu tiên</th>
-                                    <th className="p-5 font-black text-center w-[15%]">Thời hạn</th>
-                                    <th className="p-5 font-black w-[15%]">Tiến độ</th>
-                                    <th className="p-5 font-black text-right w-[10%]">Nhân sự</th>
-                                    <th className="p-5 font-black text-center w-[6%]">Xóa</th>
-                                </tr>
-                            </thead>
-                            
-                            <tbody className="divide-y divide-gray-50 bg-white">
-                                {tasks.map((task, index) => {
-                                    const assignee = allUsers.find(u => u.id === task.assigneeId);
-                                    const isLastItems = index >= tasks.length - 2 && tasks.length > 2;
-
-                                    return (
-                                        <tr key={task.id} className={`hover:bg-blue-50/20 transition-colors group ${assigningTaskId === task.id ? 'relative z-[90]' : 'z-0'}`}>
-                                            <td className="p-5 cursor-pointer" onClick={() => handleOpenDetail(task)}>
-                                                <p className="text-gray-900 font-bold text-sm group-hover:text-blue-600 transition-colors">{task.title}</p>
-                                                <p className="text-gray-400 text-xs mt-0.5 line-clamp-1 font-normal">{task.description}</p>
-                                            </td>
-                                            <td className="p-5 text-center">
-                                                <span className={`text-[10px] uppercase px-3 py-1 rounded-full font-black border ${getStatusStyle(task.status)}`}>{task.status}</span>
-                                            </td>
-                                            <td className="p-5 text-center">
-                                                <span className={`text-[10px] px-2.5 py-1 rounded-md font-black ${getPriorityStyle(task.priority)}`}>{task.priority}</span>
-                                            </td>
-                                            <td className="p-5 text-center text-[11px] text-gray-500 font-bold">
-                                                {task.dueDate ? new Date(task.dueDate).toLocaleDateString('vi-VN') : "-"}
-                                            </td>
-                                            <td className="p-5">
-                                                <div className="flex items-center gap-2">
-                                                    <div className="flex-1 bg-gray-100 h-1.5 rounded-full overflow-hidden">
-                                                        <div className="bg-blue-500 h-full rounded-full transition-all" style={{ width: `${task.progress}%` }}></div>
-                                                    </div>
-                                                    <span className="text-[10px] font-black text-gray-300 w-6 text-right">{task.progress}%</span>
-                                                </div>
-                                            </td>
-                                            
-                                            <td className={`p-5 relative ${assigningTaskId === task.id ? 'z-[100]' : ''}`}>
-                                                <div className="flex items-center justify-end gap-2.5">
-                                                    <span className="text-xs font-bold text-gray-700 truncate max-w-[90px]">
-                                                        {assignee?.name || "Chưa giao"}
-                                                    </span>
-
-                                                    {/* Nút chọn người */}
-                                                    <div className="relative">
-                                                        <button 
-                                                            onClick={(e) => {
-                                                                e.preventDefault(); e.stopPropagation();
-                                                                setAssigningTaskId(assigningTaskId === task.id ? null : task.id);
-                                                            }}
-                                                            className={`w-8 h-8 rounded-full flex items-center justify-center text-white text-[10px] font-black uppercase shadow-md border-2 border-white transition-all active:scale-90 shrink-0 ${assignee ? 'bg-blue-600' : 'bg-gray-300 hover:bg-blue-400'}`}
-                                                        >
-                                                            {assignee?.name?.charAt(0) || "?"}
-                                                        </button>
-
-                                                        {assigningTaskId === task.id && (
-                                                            <>
-                                                                <div className="fixed inset-0 z-[110]" onClick={(e) => { e.stopPropagation(); setAssigningTaskId(null); }}></div>
-                                                                {/* SỬ DỤNG SMART DROPDOWN VỊ TRÍ */}
-                                                                <div className={`absolute right-0 ${isLastItems ? 'bottom-full mb-2 origin-bottom-right' : 'top-full mt-2 origin-top-right'} w-64 bg-white rounded-2xl shadow-[0_10px_50px_rgba(0,0,0,0.2)] border border-slate-100 z-[120] py-2 animate-in fade-in zoom-in-95 duration-150`}>
-                                                                    <p className="px-4 py-2 text-[9px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-50 mb-1">Giao việc cho:</p>
-                                                                    <div className="max-h-48 overflow-y-auto custom-scrollbar">
-                                                                        {projectMembersList.length > 0 ? (
-                                                                            projectMembersList.map(member => (
-                                                                                <button
-                                                                                    key={member.id}
-                                                                                    onClick={(e) => { e.stopPropagation(); handleQuickAssign(task.id, member.userId); }}
-                                                                                    className="w-full text-left px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-blue-50 hover:text-blue-600 transition-colors flex items-center gap-3"
-                                                                                >
-                                                                                    <div className="w-6 h-6 bg-slate-100 rounded-lg flex items-center justify-center text-[9px] uppercase text-slate-500 font-black">
-                                                                                        {member.userName?.charAt(0) || 'U'}
-                                                                                    </div>
-                                                                                    <div className="flex flex-col truncate">
-                                                                                        <span className="truncate">{member.userName}</span>
-                                                                                        <span className="text-[9px] font-medium text-slate-400 truncate">{member.userEmail}</span>
-                                                                                    </div>
-                                                                                </button>
-                                                                            ))
-                                                                        ) : (
-                                                                            <p className="px-4 py-4 text-[10px] text-center text-slate-400 font-bold uppercase">Chưa có thành viên</p>
-                                                                        )}
-                                                                    </div>
-                                                                </div>
-                                                            </>
-                                                        )}
-                                                    </div>
-                                                </div>
-                                            </td>
-                                            <td className="p-5 text-center">
-                                                <button 
-                                                    onClick={(e) => { 
-                                                        e.stopPropagation();
-                                                        confirmDeleteTask(task.id); 
-                                                    }} 
-                                                    className="text-gray-200 hover:text-rose-500 p-2 hover:bg-rose-50 rounded-xl transition-all"
-                                                    title="Xóa công việc"
-                                                >
-                                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-                                                </button>
-                                            </td>
-                                        </tr>
-                                    );
-                                })}
-                                {tasks.length === 0 && (
-                                    <tr><td colSpan={7} className="text-center py-10 text-gray-400 font-medium">Chưa có công việc nào. Hãy tạo mới!</td></tr>
-                                )}
-                            </tbody>
-                        </table>
+                <>
+                    <div className="flex gap-2 mb-4 px-2">
+                        <button
+                            onClick={() => setShowAIModal(true)}
+                            className="bg-purple-600 hover:bg-purple-700 text-white px-5 py-2.5 rounded-xl font-black shadow-lg shadow-purple-200 transition active:scale-95 flex items-center gap-2 text-sm"
+                            >
+                                AI gợi ý Task
+                            </button>
                     </div>
-                </div>
+                    <div className="bg-white rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-gray-100 overflow-visible mx-2 relative">
+                        <div className="overflow-y-auto max-h-[calc(100vh-350px)] custom-scrollbar pb-32">
+                            <table className="w-full text-left border-collapse">
+                                <thead className="sticky top-0 z-20 bg-gray-50/95 backdrop-blur-sm">
+                                    <tr className="border-b border-gray-100 text-gray-400 text-[10px] uppercase tracking-widest shadow-sm">
+                                        <th className="p-5 font-black w-[30%]">Công việc</th>
+                                        <th className="p-5 font-black text-center w-[12%]">Trạng thái</th>
+                                        <th className="p-5 font-black text-center w-[12%]">Ưu tiên</th>
+                                        <th className="p-5 font-black text-center w-[15%]">Thời hạn</th>
+                                        <th className="p-5 font-black w-[15%]">Tiến độ</th>
+                                        <th className="p-5 font-black text-right w-[10%]">Nhân sự</th>
+                                        <th className="p-5 font-black text-center w-[6%]">Xóa</th>
+                                    </tr>
+                                </thead>
+                                
+                                <tbody className="divide-y divide-gray-50 bg-white">
+                                    {tasks.map((task, index) => {
+                                        const assignee = allUsers.find(u => u.id === task.assigneeId);
+                                        const isLastItems = index >= tasks.length - 2 && tasks.length > 2;
+
+                                        return (
+                                            <tr key={task.id} className={`hover:bg-blue-50/20 transition-colors group ${assigningTaskId === task.id ? 'relative z-[90]' : 'z-0'}`}>
+                                                <td className="p-5 cursor-pointer" onClick={() => handleOpenDetail(task)}>
+                                                    <p className="text-gray-900 font-bold text-sm group-hover:text-blue-600 transition-colors">{task.title}</p>
+                                                    <p className="text-gray-400 text-xs mt-0.5 line-clamp-1 font-normal">{task.description}</p>
+                                                </td>
+                                                <td className="p-5 text-center">
+                                                    <span className={`text-[10px] uppercase px-3 py-1 rounded-full font-black border ${getStatusStyle(task.status)}`}>{task.status}</span>
+                                                </td>
+                                                <td className="p-5 text-center">
+                                                    <span className={`text-[10px] px-2.5 py-1 rounded-md font-black ${getPriorityStyle(task.priority)}`}>{task.priority}</span>
+                                                </td>
+                                                <td className="p-5 text-center text-[11px] text-gray-500 font-bold">
+                                                    {task.dueDate ? new Date(task.dueDate).toLocaleDateString('vi-VN') : "-"}
+                                                </td>
+                                                <td className="p-5">
+                                                    <div className="flex items-center gap-2">
+                                                        <div className="flex-1 bg-gray-100 h-1.5 rounded-full overflow-hidden">
+                                                            <div className="bg-blue-500 h-full rounded-full transition-all" style={{ width: `${task.progress}%` }}></div>
+                                                        </div>
+                                                        <span className="text-[10px] font-black text-gray-300 w-6 text-right">{task.progress}%</span>
+                                                    </div>
+                                                </td>
+                                                
+                                                <td className={`p-5 relative ${assigningTaskId === task.id ? 'z-[100]' : ''}`}>
+                                                    <div className="flex items-center justify-end gap-2.5">
+                                                        <span className="text-xs font-bold text-gray-700 truncate max-w-[90px]">
+                                                            {assignee?.name || "Chưa giao"}
+                                                        </span>
+
+                                                        {/* Nút chọn người */}
+                                                        <div className="relative">
+                                                            <button 
+                                                                onClick={(e) => {
+                                                                    e.preventDefault(); e.stopPropagation();
+                                                                    setAssigningTaskId(assigningTaskId === task.id ? null : task.id);
+                                                                }}
+                                                                className={`w-8 h-8 rounded-full flex items-center justify-center text-white text-[10px] font-black uppercase shadow-md border-2 border-white transition-all active:scale-90 shrink-0 ${assignee ? 'bg-blue-600' : 'bg-gray-300 hover:bg-blue-400'}`}
+                                                            >
+                                                                {assignee?.name?.charAt(0) || "?"}
+                                                            </button>
+
+                                                            {assigningTaskId === task.id && (
+                                                                <>
+                                                                    <div className="fixed inset-0 z-[110]" onClick={(e) => { e.stopPropagation(); setAssigningTaskId(null); }}></div>
+                                                                    {/* SỬ DỤNG SMART DROPDOWN VỊ TRÍ */}
+                                                                    <div className={`absolute right-0 ${isLastItems ? 'bottom-full mb-2 origin-bottom-right' : 'top-full mt-2 origin-top-right'} w-64 bg-white rounded-2xl shadow-[0_10px_50px_rgba(0,0,0,0.2)] border border-slate-100 z-[120] py-2 animate-in fade-in zoom-in-95 duration-150`}>
+                                                                        <p className="px-4 py-2 text-[9px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-50 mb-1">Giao việc cho:</p>
+                                                                        <div className="max-h-48 overflow-y-auto custom-scrollbar">
+                                                                            {projectMembersList.length > 0 ? (
+                                                                                projectMembersList.map(member => (
+                                                                                    <button
+                                                                                        key={member.id}
+                                                                                        onClick={(e) => { e.stopPropagation(); handleQuickAssign(task.id, member.userId); }}
+                                                                                        className="w-full text-left px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-blue-50 hover:text-blue-600 transition-colors flex items-center gap-3"
+                                                                                    >
+                                                                                        <div className="w-6 h-6 bg-slate-100 rounded-lg flex items-center justify-center text-[9px] uppercase text-slate-500 font-black">
+                                                                                            {member.userName?.charAt(0) || 'U'}
+                                                                                        </div>
+                                                                                        <div className="flex flex-col truncate">
+                                                                                            <span className="truncate">{member.userName}</span>
+                                                                                            <span className="text-[9px] font-medium text-slate-400 truncate">{member.userEmail}</span>
+                                                                                        </div>
+                                                                                    </button>
+                                                                                ))
+                                                                            ) : (
+                                                                                <p className="px-4 py-4 text-[10px] text-center text-slate-400 font-bold uppercase">Chưa có thành viên</p>
+                                                                            )}
+                                                                        </div>
+                                                                    </div>
+                                                                </>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                </td>
+                                                <td className="p-5 text-center">
+                                                    <button 
+                                                        onClick={(e) => { 
+                                                            e.stopPropagation();
+                                                            confirmDeleteTask(task.id); 
+                                                        }} 
+                                                        className="text-gray-200 hover:text-rose-500 p-2 hover:bg-rose-50 rounded-xl transition-all"
+                                                        title="Xóa công việc"
+                                                    >
+                                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        );
+                                    })}
+                                    {tasks.length === 0 && (
+                                        <tr><td colSpan={7} className="text-center py-10 text-gray-400 font-medium">Chưa có công việc nào. Hãy tạo mới!</td></tr>
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </>
             )}
 
             {/* TAB 2: THÀNH VIÊN DỰ ÁN */}
@@ -1350,6 +1363,18 @@ export default function ProjectDetail() {
                         </div>
                     </div>
                 </div>
+            )}
+            {/* ================= MODAL AI ================= */}
+            {showAIModal && (
+                <AIBreakdownModal
+                    isOpen={showAIModal}
+                    onClose={() => setShowAIModal(false)}
+                    parentId={Number(id)}
+                    parentName={project.name}
+                    parentDesc={project.description}
+                    type="PROJECT"
+                    onSuccess={fetchData}
+                />
             )}
         </div>
     );
