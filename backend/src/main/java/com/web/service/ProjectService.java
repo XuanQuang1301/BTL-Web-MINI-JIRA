@@ -166,6 +166,7 @@ public class ProjectService {
 
         return projectMemberRepository.findByProjectId(projectId)
                 .stream()
+                .filter(pm -> !"PENDING".equalsIgnoreCase(pm.getStatus()))
                 .map(this::toMemberResponse)
                 .collect(Collectors.toList());
     }

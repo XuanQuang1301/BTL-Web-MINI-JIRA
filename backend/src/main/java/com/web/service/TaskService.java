@@ -124,6 +124,7 @@ public class TaskService {
                 .collect(Collectors.toList());
     }
 
+    @Transactional
     public TaskResponse updateStatus(Integer projectId, Integer taskId, UpdateTaskStatusRequest req,
             String requesterEmail) {
         Task task = taskRepository.findByIdAndProjectId(taskId, projectId)
@@ -153,6 +154,9 @@ public class TaskService {
         }
         if ("DONE".equalsIgnoreCase(newStatus) || "COMPLETED".equalsIgnoreCase(newStatus)) {
             task.setCompletedAt(now);
+            task.setProgress(100);
+            // Tự động đánh dấu tất cả subtask là done
+            subTaskRepository.markAllDoneByTaskId(task.getId());
         }
 
         Task saved = taskRepository.save(task);

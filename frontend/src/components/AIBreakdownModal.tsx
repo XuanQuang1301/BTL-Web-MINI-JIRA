@@ -7,6 +7,7 @@ interface GeneratedTask {
   description: string;
   dueDate: string;
   assigneeId?: number;
+  priority?: string;
 }
 
 // DTO cho subtask (task level)
@@ -18,6 +19,7 @@ interface User {
   id: number;
   name: string;
   avatar?: string;
+  email?: string;
 }
 
 interface AIBreakdownModalProps {
@@ -28,6 +30,8 @@ interface AIBreakdownModalProps {
   parentDesc?: string;
   onClose: () => void;
   onSuccess: () => void;
+  // projectName: string; 
+  // onSaved: () => void; 
 }
 
 const AIBreakdownModal: React.FC<AIBreakdownModalProps> = ({ 
@@ -52,15 +56,27 @@ const AIBreakdownModal: React.FC<AIBreakdownModalProps> = ({
 
   useEffect(() => {
     if (isOpen) {
-      const fetchUsers = async () => {
+      const fetchMembers = async () => {
         try {
-          const res = await axios.get('http://localhost:8081/api/users', getAuthConfig()); 
-          setAllUsers(res.data);
-        } catch (e) { console.error("Không lấy được danh sách user", e); }
+          if (type === 'PROJECT') {
+            const res = await axios.get(`http://localhost:8081/api/project/${parentId}/members`, getAuthConfig());
+            const members = res.data.map((m: any) => ({
+              id: m.userId,
+              name: m.userName,
+              email: m.userEmail
+            }));
+            setAllUsers(members);
+          } else {
+            const res = await axios.get('http://localhost:8081/api/users', getAuthConfig()); 
+            setAllUsers(res.data);
+          }
+        } catch (e) {
+             console.error("Không lấy được danh sách user", e);
+        }
       };
-      fetchUsers();
+      fetchMembers();
     }
-  }, [isOpen]);
+  }, [isOpen, parentId, type]);
 
   if (!isOpen) return null;
 
@@ -77,12 +93,22 @@ const AIBreakdownModal: React.FC<AIBreakdownModalProps> = ({
       
       if (type === 'PROJECT') {
         const today = new Date().toISOString().split('T')[0];
-        const normalizedData = response.data.map((t: any) => ({
-          title: t.title,
-          description: t.description,
-          dueDate: t.dueDate || today,
-          assigneeId: undefined
-        }));
+        const normalizedData = response.data.map((t: any) => {
+          let prio = 'MEDIUM';
+          if (t.priority) {
+            const p = String(t.priority).toUpperCase();
+            if (p.includes('LOW') || p.includes('THẤP')) prio = 'LOW';
+            else if (p.includes('HIGH') || p.includes('CAO') || p.includes('QUAN TRỌNG')) prio = 'HIGH';
+            else if (p.includes('URGENT') || p.includes('KHẨN')) prio = 'URGENT';
+          }
+          return {
+            title: t.title,
+            description: t.description,
+            dueDate: t.dueDate || today,
+            assigneeId: undefined,
+            priority: prio
+          };
+        });
         setGeneratedList(normalizedData);
       } else {
         // TASK level: AI trả về danh sách subtask (có thể có title/description hoặc content)
@@ -114,12 +140,13 @@ const AIBreakdownModal: React.FC<AIBreakdownModalProps> = ({
       if (type === 'PROJECT') {
         const tasks = generatedList as GeneratedTask[];
         for (const task of tasks) {
+          const selectedUser = allUsers.find(u => u.id === task.assigneeId);
           const payload = {
             title: task.title,
             description: task.description,
             dueDate: task.dueDate ? `${task.dueDate}T23:59:59` : null,
-            assigneeId: task.assigneeId || null,
-            priority: 'MEDIUM',
+            assigneeEmail: selectedUser ? selectedUser.email : null,
+            priority: task.priority || 'MEDIUM',
             status: 'TODO',
             progress: 0
           };
@@ -134,7 +161,7 @@ const AIBreakdownModal: React.FC<AIBreakdownModalProps> = ({
           }, getAuthConfig());
         }
       }
-      alert("✅ Lưu thành công!");
+      alert("Lưu thành công!");
       onSuccess();
       onClose();
     } catch (error: any) {
@@ -152,7 +179,7 @@ const AIBreakdownModal: React.FC<AIBreakdownModalProps> = ({
         {/* Header */}
         <div className="bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-500 p-6 text-white flex justify-between items-center">
           <div>
-            <h2 className="text-2xl font-black flex items-center gap-2">✨ TinyJira AI Assistant</h2>
+            <h2 className="text-2xl font-black flex items-center gap-2"> TinyJira AI Assistant</h2>
             <p className="text-sm font-medium opacity-80">
               Phân rã {type === 'PROJECT' ? 'công việc cho dự án' : 'đầu việc cho task'}: <span className="underline">{parentName}</span>
             </p>
@@ -177,7 +204,7 @@ const AIBreakdownModal: React.FC<AIBreakdownModalProps> = ({
                 disabled={isLoading}
                 className="px-6 bg-slate-900 hover:bg-black text-white rounded-xl font-bold text-sm transition-all disabled:bg-slate-300"
               >
-                {isLoading ? "🧠 Đang xử lý..." : "🪄 Phân rã"}
+                {isLoading ? " Đang xử lý..." : " Phân rã"}
               </button>
             </div>
           </div>
@@ -226,6 +253,21 @@ const AIBreakdownModal: React.FC<AIBreakdownModalProps> = ({
                             </select>
                           </div>
 
+                          {/* Priority dropdown */}
+                          <div className="flex-1">
+                            <p className="text-[10px] font-bold text-slate-400 uppercase mb-1">Độ ưu tiên</p>
+                            <select 
+                              className="text-xs font-semibold bg-slate-50 border-none rounded-lg p-2 w-full min-w-[100px]"
+                              value={(item as GeneratedTask).priority || 'MEDIUM'}
+                              onChange={(e) => handleEditItem(index, 'priority', e.target.value)}
+                            >
+                              <option value="LOW">Thấp (LOW)</option>
+                              <option value="MEDIUM">Trung bình (MEDIUM)</option>
+                              <option value="HIGH">Cao (HIGH)</option>
+                              <option value="URGENT">Khẩn cấp (URGENT)</option>
+                            </select>
+                          </div>
+
                           {/* Due date */}
                           <div className="min-w-[140px]">
                             <p className="text-[10px] font-bold text-slate-400 uppercase mb-1">Hạn chót</p>
@@ -264,7 +306,7 @@ const AIBreakdownModal: React.FC<AIBreakdownModalProps> = ({
             disabled={generatedList.length === 0 || isSaving}
             className="px-8 py-3 rounded-xl font-bold text-white bg-gradient-to-r from-blue-600 to-indigo-600 shadow-lg shadow-blue-200 hover:scale-105 transition-all disabled:opacity-50"
           >
-            {isSaving ? "⏳ Đang lưu..." : "🚀 Xác nhận và Lưu"}
+            {isSaving ? " Đang lưu..." : "Xác nhận và Lưu"}
           </button>
         </div>
       </div>

@@ -1,8 +1,9 @@
 import { useState } from 'react';
-import axios from 'axios'
-import { Link } from 'react-router-dom';
+import axios from 'axios';
+import { Link, useNavigate } from 'react-router-dom';
 
 export default function Register() {
+  const navigate = useNavigate();
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -24,8 +25,9 @@ export default function Register() {
     try {
       const response = await axios.post('http://localhost:8081/api/auth/signup', formData);
       setIsError(false);
-      setMessage('Đăng ký thành công! Bạn có thể đăng nhập ngay');
+      setMessage('Đăng ký thành công! Đang chuyển đến trang đăng nhập...');
       console.log('Dữ liệu trả về:', response.data);
+      setTimeout(() => navigate('/login'), 2000);
     }
     catch (error: any) {
       setIsError(true);

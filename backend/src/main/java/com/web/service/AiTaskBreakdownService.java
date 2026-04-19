@@ -100,7 +100,7 @@ public class AiTaskBreakdownService {
                 + "Hôm nay là ngày: " + today + "\n"
                 + "Nhiệm vụ: Phân tích yêu cầu dự án sau và chia thành 4-6 Tasks chính.\n"
                 + "BẮT BUỘC trả về DUY NHẤT một JSON Array với cấu trúc:\n"
-                + "[{\"title\": \"Tên công việc\", \"description\": \"Mô tả cách làm\", \"dueDate\": \"YYYY-MM-DD\"}]\n"
+                + "[{\"title\": \"Tên công việc\", \"description\": \"Mô tả cách làm\", \"dueDate\": \"YYYY-MM-DD\", \"priority\": \"LOW|MEDIUM|HIGH\"}]\n"
                 + "Quy tắc dueDate: bắt đầu từ ngày mai. Không thêm trường khác.\n"
                 + "Yêu cầu: " + userMessage;
         return buildJsonRequest(prompt);

@@ -140,8 +140,12 @@ export default function ProjectDetail() {
             setTasks(taskRes.data);
             setProjectMembersList(membersRes.data);
             setAllUsers(allUsersRes.data);
+            const payload = token ? JSON.parse(atob(token.split('.')[1])) : null;
+            const currentUserEmail = payload ? payload.sub : null;
+            const me = membersRes.data.find((m: any) => m.userEmail === currentUserEmail || m.userName === currentUserEmail);
+            const fetchedRole = me ? me.role : 'MEMBER';
             
-            if (myRole === 'OWNER' || myRole === 'MANAGER') {
+            if (fetchedRole === 'OWNER' || fetchedRole === 'MANAGER') {
                 fetchPendingMembers();
             }
         } catch (error: any) { 
@@ -361,10 +365,10 @@ export default function ProjectDetail() {
         const newIsDone = !currentIsDone; 
 
         // 1. TÍNH TOÁN NGAY LẬP TỨC: Tạo mảng Subtask mới nhất
-        const updatedSubs = subTasks.map(s => s.id === subId ? { ...s, isDone: newIsDone } : s);
+        const updatedSubs = subTasks.map(s => s.id === subId ? { ...s, isDone: newIsDone, done: newIsDone } : s);
         
         // Tính % dựa trên mảng vừa tạo
-        const doneCount = updatedSubs.filter(s => s.isDone).length;
+        const doneCount = updatedSubs.filter(s => s.isDone || s.done).length;
         const newProgress = updatedSubs.length > 0 ? Math.round((doneCount / updatedSubs.length) * 100) : 0;
 
         // 2. CẬP NHẬT ĐỒNG LOẠT VÀO STATE (Optimistic UI - Giao diện chạy mượt ngay lập tức)
@@ -407,7 +411,7 @@ export default function ProjectDetail() {
             setSubTasks(newSubs);
             
             // Tính % mới
-            const doneCount = newSubs.filter((s: any) => s.isDone).length;
+            const doneCount = newSubs.filter((s: any) => s.isDone || s.done).length;
             const newProgress = newSubs.length > 0 ? Math.round((doneCount / newSubs.length) * 100) : 0;
             
             setSelectedTask({ ...selectedTask, progress: newProgress });
@@ -1100,7 +1104,7 @@ export default function ProjectDetail() {
                                                 <div className="flex justify-between items-center mb-3">
                                                     <label className="text-[10px] font-black text-black-400 uppercase tracking-widest">Việc cần làm</label>
                                                     <span className="text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-lg">
-                                                        {subTasks.filter(s => s.isDone).length}/{subTasks.length}
+                                                        {subTasks.filter(s => s.isDone || s.done).length}/{subTasks.length}
                                                     </span>
                                                 </div>
                                                 
@@ -1112,16 +1116,16 @@ export default function ProjectDetail() {
                                                             className={`flex items-center gap-3 p-3 bg-gray-50/50 border border-gray-100 rounded-2xl transition ${canModifyTask ? 'cursor-pointer hover:bg-gray-50' : 'opacity-80'}`} 
                                                             onClick={(e) => {
                                                                 e.preventDefault();
-                                                                if(canModifyTask) handleToggleSub(sub.id, sub.isDone);
+                                                                if(canModifyTask) handleToggleSub(sub.id, sub.isDone || sub.done || false);
                                                             }}
                                                         >
                                                             <input 
                                                                 type="checkbox" 
-                                                                checked={sub.isDone} 
+                                                                checked={sub.isDone || sub.done || false} 
                                                                 readOnly /* KHÓA QUYỀN TRÌNH DUYỆT, CHỈ CHO PHÉP REACT ĐIỀU KHIỂN */
                                                                 className={`w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 pointer-events-none ${canModifyTask ? 'cursor-pointer' : 'cursor-not-allowed'}`} 
                                                             />
-                                                            <span className={`text-xs font-medium ${sub.isDone ? 'text-gray-400 line-through' : 'text-gray-700'}`}>
+                                                            <span className={`text-xs font-medium ${(sub.isDone || sub.done) ? 'text-gray-400 line-through' : 'text-gray-700'}`}>
                                                                 {sub.content}
                                                             </span>
                                                         </div>

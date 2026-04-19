@@ -22,7 +22,7 @@ public interface ProjectRepository extends JpaRepository<Project, Integer> {
      */
     @Query("SELECT DISTINCT p FROM Project p " +
             "LEFT JOIN com.web.entity.ProjectMember pm ON pm.project = p " +
-            "WHERE p.owner.id = :userId OR (pm.user.id = :userId AND pm.leftAt IS NULL) " +
+            "WHERE p.owner.id = :userId OR (pm.user.id = :userId AND pm.leftAt IS NULL AND (pm.status IS NULL OR pm.status != 'PENDING')) " +
             "ORDER BY p.createdAt DESC")
     List<Project> findAllInvolvedByUserId(@Param("userId") Long userId);
 }

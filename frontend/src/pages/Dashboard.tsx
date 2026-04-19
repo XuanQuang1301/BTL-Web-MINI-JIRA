@@ -182,7 +182,7 @@ export default function Dashboard() {
 
                 {/* 2. Biểu đồ DONUT MỚI */}
                 <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm lg:col-span-1 flex flex-col">
-                    <h3 className="text-lg font-bold text-gray-800 mb-2">Trạng thái dự án</h3>
+                    <h3 className="text-lg font-bold text-gray-800 mb-2">Trạng thái công việc</h3>
                     
                     {totalTasksForPie === 0 ? (
                         <div className="h-[320px] flex flex-col items-center justify-center text-gray-400">

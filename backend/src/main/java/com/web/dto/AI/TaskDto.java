@@ -9,4 +9,5 @@ public class TaskDto {
     private String description;
     private LocalDate dueDate;
     private Long assigneeId;
+    private String priority;
 }
