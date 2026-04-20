@@ -86,7 +86,6 @@ export default function Dashboard() {
     }
 
     // --- DATA CHO BIỂU ĐỒ DONUT TÙY CHỈNH ---
-    // Gắn màu trực tiếp vào đây để khi lọc bỏ giá trị 0 không bị sai màu
     const pieData = [
         { name: 'Hoàn thành', value: completedTasks, color: '#10B981' }, 
         { name: 'Đang xử lý', value: inProgressTasks, color: '#F59E0B' }, 

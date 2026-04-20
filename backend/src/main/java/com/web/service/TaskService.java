@@ -307,6 +307,9 @@ public class TaskService {
         task.setDescription(request.getDescription());
         task.setPriority(request.getPriority());
         task.setDueDate(request.getDueDate());
+        if (request.getProgress() != null) {
+            task.setProgress(request.getProgress());
+        }
         task.setUpdatedAt(LocalDateTime.now());
 
         Task updated = taskRepository.save(task);

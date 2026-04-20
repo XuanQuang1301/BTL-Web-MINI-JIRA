@@ -18,9 +18,9 @@ public interface TaskRepository extends JpaRepository<Task, Integer> {
     Optional<Task> findByIdAndProjectId(Integer id, Integer projectId);
 
     @Modifying(clearAutomatically = true, flushAutomatically = true)
-    @Query("update Task t set t.project = null where t.project.id = :projectId")
-    int clearProjectByProjectId(@Param("projectId") Integer projectId);
-    @Modifying
+    @Query("delete from Task t where t.project.id = :projectId")
+    int deleteByProjectId(@Param("projectId") Integer projectId);
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Transactional
     @Query("UPDATE Task t SET t.progress = :progress WHERE t.id = :id")
     void updateProgress(@Param("id") Integer id, @Param("progress") int progress);

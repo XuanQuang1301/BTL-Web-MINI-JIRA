@@ -9,6 +9,7 @@ import com.web.repository.TaskRepository;
 import jakarta.persistence.EntityNotFoundException;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -59,27 +60,27 @@ public class SubTaskService {
     }
 
     @Transactional
-public SubTask toggleSubTask(Integer subTaskId, Boolean isDone) {
-    SubTask subTask = subTaskRepository.findById(subTaskId)
-            .orElseThrow(() -> new EntityNotFoundException("Không tìm thấy SubTask"));
-    subTask.setDone(isDone);
-    subTask = subTaskRepository.save(subTask);
-    Task parentTask = subTask.getTask();
-    if (parentTask != null) {
-        List<SubTask> allSubTasks = subTaskRepository.findByTaskId(parentTask.getId());
+    public SubTask toggleSubTask(Integer subTaskId, Boolean isDone, String requesterEmail) {
+        SubTask subTask = subTaskRepository.findById(subTaskId)
+                .orElseThrow(() -> new EntityNotFoundException("Không tìm thấy SubTask"));
         
-        if (allSubTasks.isEmpty()) {
-            parentTask.setProgress(0);
-        } else {
-            long doneCount = allSubTasks.stream().filter(s -> s.isDone()).count();
-                        int newProgress = (int) Math.round((double) doneCount / allSubTasks.size() * 100);
-            
-            parentTask.setProgress(newProgress);
+        Task task = subTask.getTask();
+        if (task == null) {
+            throw new IllegalStateException("Subtask không thuộc task nào");
         }
-                taskRepository.save(parentTask);
+
+        // Kiểm tra quyền: Chỉ người được thảo (assignee) mới được phép tích subtask
+        boolean isAssignee = task.getAssignee() != null && task.getAssignee().getEmail().equalsIgnoreCase(requesterEmail);
+        if (!isAssignee) {
+            throw new AccessDeniedException("Chỉ người được giao việc mới có quyền hoàn thành các đầu việc nhỏ!");
+        }
+
+        subTask.setDone(isDone);
+        subTask = subTaskRepository.save(subTask);
+        
+        updateTaskProgressAuto(task.getId());
+        return subTask;
     }
-    return subTask;
-}
     private SubTaskResponse toResponse(SubTask sub) {
         SubTaskResponse res = new SubTaskResponse();
         res.setId(sub.getId());

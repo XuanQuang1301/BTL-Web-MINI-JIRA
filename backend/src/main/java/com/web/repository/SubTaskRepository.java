@@ -17,6 +17,10 @@ public interface SubTaskRepository extends JpaRepository<SubTask, Integer> {
     int deleteByTaskId(@Param("taskId") Integer taskId);
 
     @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("delete from SubTask st where st.task.id in (select t.id from Task t where t.project.id = :projectId)")
+    int deleteByProjectId(@Param("projectId") Integer projectId);
+
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query("UPDATE SubTask st SET st.isDone = true WHERE st.task.id = :taskId")
     int markAllDoneByTaskId(@Param("taskId") Integer taskId);
 }

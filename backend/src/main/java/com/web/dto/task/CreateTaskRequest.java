@@ -24,6 +24,8 @@ public class CreateTaskRequest {
 
     private LocalDateTime dueDate;
 
+    private Integer progress;
+
     public String getTitle() {
         return title;
     }
@@ -70,5 +72,13 @@ public class CreateTaskRequest {
 
     public void setDueDate(LocalDateTime dueDate) {
         this.dueDate = dueDate;
+    }
+
+    public Integer getProgress() {
+        return progress;
+    }
+
+    public void setProgress(Integer progress) {
+        this.progress = progress;
     }
 }

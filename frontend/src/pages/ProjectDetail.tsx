@@ -123,6 +123,7 @@ export default function ProjectDetail() {
     })();
     
     const canModifyTask = myRole === 'OWNER' || myRole === 'MANAGER' || (selectedTask?.assigneeId === currentUserId);
+    const canToggleSub = selectedTask?.assigneeId === currentUserId;
     
     const fetchData = async (showLoading = true) => {
         if (showLoading) setIsLoading(true); 
@@ -1110,20 +1111,20 @@ export default function ProjectDetail() {
                                                 
                                                 <div className="space-y-2 max-h-48 overflow-y-auto pr-2 custom-scrollbar">
                                                     {subTasks.map((sub) => (
-                                                        /* FIX QUAN TRỌNG: ĐỔI LABEL THÀNH DIV ĐỂ NGĂN TRÌNH DUYỆT TỰ ĐỘNG ĐỔI CHECKBOX GÂY NHẤP NHÁY */
                                                         <div 
                                                             key={sub.id} 
-                                                            className={`flex items-center gap-3 p-3 bg-gray-50/50 border border-gray-100 rounded-2xl transition ${canModifyTask ? 'cursor-pointer hover:bg-gray-50' : 'opacity-80'}`} 
+                                                            className={`flex items-center gap-3 p-3 bg-gray-50/50 border border-gray-100 rounded-2xl transition ${canToggleSub ? 'cursor-pointer hover:bg-gray-50 shadow-sm' : 'opacity-70 grayscale-[0.3]'}`} 
                                                             onClick={(e) => {
                                                                 e.preventDefault();
-                                                                if(canModifyTask) handleToggleSub(sub.id, sub.isDone || sub.done || false);
+                                                                if(canToggleSub) handleToggleSub(sub.id, sub.isDone || sub.done || false);
                                                             }}
+                                                            title={canToggleSub ? "" : "Chỉ người thực hiện mới được tích hoàn thành"}
                                                         >
                                                             <input 
                                                                 type="checkbox" 
                                                                 checked={sub.isDone || sub.done || false} 
-                                                                readOnly /* KHÓA QUYỀN TRÌNH DUYỆT, CHỈ CHO PHÉP REACT ĐIỀU KHIỂN */
-                                                                className={`w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 pointer-events-none ${canModifyTask ? 'cursor-pointer' : 'cursor-not-allowed'}`} 
+                                                                readOnly 
+                                                                className={`w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 pointer-events-none ${canToggleSub ? 'cursor-pointer' : 'cursor-not-allowed opacity-50'}`} 
                                                             />
                                                             <span className={`text-xs font-medium ${(sub.isDone || sub.done) ? 'text-gray-400 line-through' : 'text-gray-700'}`}>
                                                                 {sub.content}

@@ -48,7 +48,7 @@ export default function MyTasks() {
 
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [editingTask, setEditingTask] = useState<Task | null>(null);
-    const [isEditingTask, setIsEditingTask] = useState(false); // false = xem chi tiết, true = đang chỉnh sửa
+    const [isEditingTask, setIsEditingTask] = useState(false); 
     const [editTitle, setEditTitle] = useState('');
     const [editDesc, setEditDesc] = useState('');
     const [editProgress, setEditProgress] = useState(0);
@@ -105,7 +105,11 @@ export default function MyTasks() {
         try {
             const token = localStorage.getItem('token');
             const res = await axios.get(`http://localhost:8081/api/subtasks/task/${taskId}`, { headers: { Authorization: `Bearer ${token}` } });
-            setSubTasks(res.data);
+            const freshSubs = res.data;
+            setSubTasks(freshSubs);
+            const doneCount = freshSubs.filter((s: any) => s.isDone || s.done).length;
+            const newProgress = freshSubs.length > 0 ? Math.round((doneCount / freshSubs.length) * 100) : 0;
+            setEditingTask(prev => prev && prev.id === taskId ? { ...prev, progress: newProgress } : prev);
         } catch (error) { console.error(error); }
     };
 
@@ -119,26 +123,32 @@ export default function MyTasks() {
                 { headers: { Authorization: `Bearer ${token}` } }
             );
             setNewSubContent('');
-            fetchSubTasks(editingTask.id);
+            await fetchSubTasks(editingTask.id); 
             fetchData();
         } catch (error) { alert("Lỗi thêm subtask"); }
     };
 
     const handleToggleSub = async (subId: number, currentIsDone: boolean) => {
         const newIsDone = !currentIsDone;
-        // Optimistic UI
-        setSubTasks(prev => prev.map(s => s.id === subId ? { ...s, isDone: newIsDone, done: newIsDone } : s));
+        // 1. Optimistic UI: cập nhật subtask ngay lập tức
+        const updatedSubs = subTasks.map(s => s.id === subId ? { ...s, isDone: newIsDone, done: newIsDone } : s);
+        setSubTasks(updatedSubs);
+        // 2. Tính và cập nhật % tiến độ ngay lập tức 
+        const doneCount = updatedSubs.filter(s => s.isDone || s.done).length;
+        const newProgress = updatedSubs.length > 0 ? Math.round((doneCount / updatedSubs.length) * 100) : 0;
+        setEditingTask(prev => prev ? { ...prev, progress: newProgress } : prev);
         try {
             const token = localStorage.getItem('token');
             await axios.patch(`http://localhost:8081/api/subtasks/${subId}/toggle`,
                 { isDone: newIsDone },
                 { headers: { Authorization: `Bearer ${token}` } }
             );
+            // Sau khi server xác nhận, re-sync lại data thật (fetchSubTasks cũng update progress)
             await fetchSubTasks(editingTask!.id);
-            await fetchData();
+            fetchData(); 
         } catch (error) {
-            // Revert
             setSubTasks(prev => prev.map(s => s.id === subId ? { ...s, isDone: currentIsDone, done: currentIsDone } : s));
+            setEditingTask(prev => prev ? { ...prev, progress: editingTask!.progress } : prev);
             alert("Lỗi cập nhật subtask");
         }
     };
@@ -156,7 +166,7 @@ export default function MyTasks() {
         try {
             const token = localStorage.getItem('token');
             await axios.post(`http://localhost:8081/api/project/${editingTask.projectId}/tasks/${editingTask.id}/comments`, {
-                taskId: editingTask.id, content: commentText
+                content: commentText  
             }, { headers: { Authorization: `Bearer ${token}` } });
             setCommentText('');
             fetchComments(editingTask.projectId, editingTask.id);
@@ -238,7 +248,7 @@ export default function MyTasks() {
         }
     };
 
-    // Mở modal ở chế độ XEM (không phải edit ngay)
+    // Mở modal ở chế độ XEM
     const handleOpenModal = (task: Task) => {
         setEditingTask(task);
         setIsEditingTask(false);
@@ -264,16 +274,17 @@ export default function MyTasks() {
         setIsUpdating(true);
         try {
             const token = localStorage.getItem('token');
-            const finalProgress = editingTask.status === 'DONE' ? 100 : editProgress;
             const res = await axios.put(`http://localhost:8081/api/project/${editingTask.projectId}/tasks/${editingTask.id}`, {
-                title: editTitle, description: editDesc, progress: finalProgress,
-                priority: editPriority, dueDate: editDueDate ? new Date(editDueDate).toISOString() : null,
+                title: editTitle,
+                description: editDesc,
+                priority: editPriority,
+                dueDate: editDueDate ? new Date(editDueDate).toISOString() : null,
+                assigneeEmail: null  // MyTasks không sửa assignee, gửi null để tránh lỗi @Email validation
             }, { headers: { Authorization: `Bearer ${token}` } });
-            // Cập nhật task hiển thị và về chế độ xem
             setEditingTask(res.data);
             setIsEditingTask(false);
             fetchData();
-        } catch (error) { alert("Lỗi cập nhật"); }
+        } catch (error: any) { alert("Lỗi cập nhật: " + (error.response?.data?.error || error.response?.data?.message || "Kiểm tra lại dữ liệu")); }
         finally { setIsUpdating(false); }
     };
 
@@ -361,7 +372,7 @@ export default function MyTasks() {
                         ))}
                         {filteredTasksList.length === 0 && (
                             <div className="text-center py-20 text-slate-400">
-                                <p className="text-5xl mb-4">✅</p>
+                                <p className="text-5xl mb-4"></p>
                                 <p className="font-bold">Không có công việc nào ở đây!</p>
                             </div>
                         )}
@@ -481,13 +492,13 @@ export default function MyTasks() {
                                             </div>
                                         </div>
                                         <div>
-                                            <label className="text-[11px] font-black text-slate-600 uppercase tracking-widest block mb-2">Tiến độ ({editProgress}%)</label>
-                                            <input type="range" min="0" max="100" step={subTasks.length > 0 ? 1 : 50}
-                                                value={editingTask.status === 'DONE' ? 100 : editProgress}
-                                                disabled={subTasks.length > 0 || editingTask.status === 'DONE'}
-                                                onChange={(e) => setEditProgress(Number(e.target.value))}
-                                                className={`w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-600 ${subTasks.length > 0 ? 'opacity-40 cursor-not-allowed' : ''}`}
-                                            />
+                                            <label className="text-[11px] font-black text-slate-600 uppercase tracking-widest block mb-2">Tiến độ (Tự động tính từ Subtask)</label>
+                                            <div className="flex items-center gap-3">
+                                                <div className="flex-1 bg-slate-100 h-2.5 rounded-full overflow-hidden border border-slate-200">
+                                                    <div className="bg-blue-600 h-full rounded-full transition-all duration-500 shadow-[0_0_8px_rgba(37,99,235,0.4)]" style={{ width: `${editProgress}%` }}></div>
+                                                </div>
+                                                <span className="text-xs font-black text-blue-600 bg-blue-50 px-2 py-1 rounded-lg border border-blue-100 min-w-[45px] text-center">{editProgress}%</span>
+                                            </div>
                                         </div>
 
                                         {/* Subtasks trong form edit */}
@@ -502,6 +513,10 @@ export default function MyTasks() {
                                                 <input type="text" value={newSubContent} onChange={(e) => setNewSubContent(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleAddSubTask()}
                                                     placeholder="Thêm đầu việc mới..." className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs outline-none focus:ring-2 focus:ring-blue-100" />
                                                 <button type="button" onClick={handleAddSubTask} className="bg-blue-600 text-white px-4 rounded-xl font-black text-[10px] uppercase shadow-md active:scale-95 transition">Thêm</button>
+                                                <button type="button" onClick={() => { setSelectedTaskId(editingTask!.id); setSelectedTaskTitle(editingTask!.title); setShowAIModal(true); }}
+                                                    className="flex items-center gap-1.5 bg-gradient-to-r from-violet-500 to-purple-600 text-white px-4 rounded-xl font-black text-[10px] uppercase shadow-md active:scale-95 transition hover:from-violet-600 hover:to-purple-700">
+                                                    ✨ AI
+                                                </button>
                                             </div>
                                             <div className="space-y-2 max-h-40 overflow-y-auto custom-scrollbar">
                                                 {subTasks.map(sub => (
@@ -567,6 +582,10 @@ export default function MyTasks() {
                                                 <input type="text" value={newSubContent} onChange={(e) => setNewSubContent(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleAddSubTask()}
                                                     placeholder="Thêm đầu việc mới..." className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs outline-none focus:ring-2 focus:ring-blue-100" />
                                                 <button onClick={handleAddSubTask} className="bg-blue-600 text-white px-4 rounded-xl font-black text-[10px] uppercase shadow-md active:scale-95 transition">Thêm</button>
+                                                <button type="button" onClick={() => { setSelectedTaskId(editingTask!.id); setSelectedTaskTitle(editingTask!.title); setShowAIModal(true); }}
+                                                    className="flex items-center gap-1.5 bg-gradient-to-r from-violet-500 to-purple-600 text-white px-4 rounded-xl font-black text-[10px] uppercase shadow-md active:scale-95 transition hover:from-violet-600 hover:to-purple-700">
+                                                    AI Gợi ý
+                                                </button>
                                             </div>
                                             <div className="space-y-2 max-h-48 overflow-y-auto custom-scrollbar">
                                                 {subTasks.map(sub => (
@@ -609,15 +628,18 @@ export default function MyTasks() {
                 </div>
             )}
 
-            {/* AI Modal */}
-            {/* <AIBreakdownModal
-                isOpen={showAIModal}
-                onClose={() => setShowAIModal(false)}
-                projectName={selectedTaskTitle}
-                parentId={selectedTaskId || 0}
-                type="TASK"
-                onSaved={() => { fetchData(); setShowAIModal(false); }}
-            /> */}
+            {/* AI Modal - Gợi ý Subtask */}
+            {showAIModal && editingTask && (
+                <AIBreakdownModal
+                    isOpen={showAIModal}
+                    onClose={() => setShowAIModal(false)}
+                    parentId={selectedTaskId || 0}
+                    parentName={selectedTaskTitle}
+                    parentDesc={editingTask.description || ''}
+                    type="TASK"
+                    onSuccess={() => { fetchSubTasks(editingTask.id); fetchData(); setShowAIModal(false); }}
+                />
+            )}
         </div>
     );
 }

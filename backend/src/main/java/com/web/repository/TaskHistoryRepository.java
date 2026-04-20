@@ -16,4 +16,8 @@ public interface TaskHistoryRepository extends JpaRepository<TaskHistory, Intege
     @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query("update TaskHistory th set th.task = null where th.task.id = :taskId")
     int clearTaskByTaskId(@Param("taskId") Integer taskId);
+
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("delete from TaskHistory th where th.task.id in (select t.id from Task t where t.project.id = :projectId)")
+    int deleteByProjectId(@Param("projectId") Integer projectId);
 }

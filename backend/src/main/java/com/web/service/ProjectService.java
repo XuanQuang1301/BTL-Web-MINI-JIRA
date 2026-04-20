@@ -8,8 +8,11 @@ import com.web.dto.project.UpdateProjectRequest;
 import com.web.entity.Project;
 import com.web.entity.ProjectMember;
 import com.web.entity.User;
+import com.web.repository.CommentRepository;
 import com.web.repository.ProjectMemberRepository;
 import com.web.repository.ProjectRepository;
+import com.web.repository.SubTaskRepository;
+import com.web.repository.TaskHistoryRepository;
 import com.web.repository.TaskRepository;
 import com.web.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -37,6 +40,15 @@ public class ProjectService {
 
     @Autowired
     private TaskRepository taskRepository;
+
+    @Autowired
+    private SubTaskRepository subTaskRepository;
+
+    @Autowired
+    private CommentRepository commentRepository;
+
+    @Autowired
+    private TaskHistoryRepository taskHistoryRepository;
 
     public ProjectResponse createProject(CreateProjectRequest req, String ownerEmail) {
         String normalizedKey = req.getKey().trim().toUpperCase();
@@ -116,11 +128,21 @@ public class ProjectService {
             throw new AccessDeniedException("Ban khong duoc quyen xoa project nay");
         }
         try {
-            taskRepository.clearProjectByProjectId(id);
+            // Xóa đúng thứ tự để tránh vi phạm constraint:
+            // 1) SubTask (phụ thuộc Task)
+            subTaskRepository.deleteByProjectId(id);
+            // 2) Comment (phụ thuộc Task)
+            commentRepository.deleteByProjectId(id);
+            // 3) TaskHistory (phụ thuộc Task)
+            taskHistoryRepository.deleteByProjectId(id);
+            // 4) Task (phụ thuộc Project)
+            taskRepository.deleteByProjectId(id);
+            // 5) ProjectMember (phụ thuộc Project)
             projectMemberRepository.clearProjectByProjectId(id);
+            // 6) Xóa Project
             projectRepository.delete(p);
         } catch (DataIntegrityViolationException ex) {
-            throw new IllegalStateException("Khong the xoa project dang duoc tham chieu");
+            throw new IllegalStateException("Khong the xoa project dang duoc tham chieu: " + ex.getMessage());
         }
     }
 

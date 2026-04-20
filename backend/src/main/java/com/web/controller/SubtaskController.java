@@ -3,6 +3,7 @@ import com.web.service.SubTaskService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import java.security.Principal;
 import java.util.Map;
 @RestController
 @CrossOrigin(origins = "*", methods = {RequestMethod.GET, RequestMethod.POST, RequestMethod.PATCH, RequestMethod.DELETE})
@@ -24,11 +25,11 @@ public class SubtaskController {
     }
 
     @PatchMapping("/{id}/toggle")
-    public ResponseEntity<?> toggle(@PathVariable Integer id, @RequestBody Map<String, Object> payload) {
+    public ResponseEntity<?> toggle(@PathVariable Integer id, @RequestBody Map<String, Object> payload, Principal principal) {
         Object value = payload.get("isDone");
         Boolean status = (value instanceof Boolean) ? (Boolean) value : false;
         
-        return ResponseEntity.ok(subTaskService.toggleSubTask(id, status));
+        return ResponseEntity.ok(subTaskService.toggleSubTask(id, status, principal.getName()));
     }
 
     @DeleteMapping("/{id}")
