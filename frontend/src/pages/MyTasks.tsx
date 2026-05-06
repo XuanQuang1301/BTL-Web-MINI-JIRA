@@ -40,6 +40,7 @@ const initialBoard: BoardData = {
 export default function MyTasks() {
     const [viewMode, setViewMode] = useState<'list' | 'kanban'>('list');
     const [activeTab, setActiveTab] = useState('all');
+    const [priorityFilter, setPriorityFilter] = useState<string>('all');
 
     const [columns, setColumns] = useState<BoardData>(initialBoard);
     const [isLoading, setIsLoading] = useState(true);
@@ -308,7 +309,19 @@ export default function MyTasks() {
     };
 
     const allTasksList = [...columns.TODO.items, ...columns.IN_PROGRESS.items, ...columns.REVIEW.items, ...columns.DONE.items];
-    const filteredTasksList = activeTab === 'all' ? allTasksList : allTasksList.filter(t => t.status === activeTab);
+    const byStatusList = activeTab === 'all' ? allTasksList : allTasksList.filter(t => t.status === activeTab);
+    const filteredTasksList = priorityFilter === 'all' ? byStatusList : byStatusList.filter(t => t.priority === priorityFilter);
+
+    // Kanban: lọc từng cột theo priority
+    const filteredColumns: BoardData = Object.fromEntries(
+        Object.entries(columns).map(([colId, col]) => [
+            colId,
+            {
+                ...col,
+                items: priorityFilter === 'all' ? col.items : col.items.filter(t => t.priority === priorityFilter)
+            }
+        ])
+    ) as BoardData;
 
     if (isLoading) return <div className="h-screen flex items-center justify-center text-blue-600 font-bold animate-pulse">SẴN SÀNG...</div>;
 
@@ -330,6 +343,46 @@ export default function MyTasks() {
                         Kanban
                     </button>
                 </div>
+            </div>
+
+            {/* PRIORITY FILTER */}
+            <div className="flex items-center gap-3 mb-6 px-2 flex-wrap">
+                <span className="text-xs font-black text-slate-500 uppercase tracking-widest shrink-0">Ưu tiên:</span>
+                {[
+                    { id: 'all', label: 'Tất cả' },
+                    { id: 'URGENT', label: '🔴 Khẩn cấp' },
+                    { id: 'HIGH', label: '🟠 Cao' },
+                    { id: 'MEDIUM', label: '🟡 Trung bình' },
+                    { id: 'LOW', label: '🔵 Thấp' },
+                ].map(p => {
+                    const count = p.id === 'all'
+                        ? allTasksList.length
+                        : allTasksList.filter(t => t.priority === p.id).length;
+                    const isActive = priorityFilter === p.id;
+                    const activeColors: Record<string, string> = {
+                        all: 'bg-slate-900 text-white border-slate-900',
+                        URGENT: 'bg-red-500 text-white border-red-500',
+                        HIGH: 'bg-rose-500 text-white border-rose-500',
+                        MEDIUM: 'bg-orange-400 text-white border-orange-400',
+                        LOW: 'bg-blue-500 text-white border-blue-500',
+                    };
+                    return (
+                        <button
+                            key={p.id}
+                            onClick={() => setPriorityFilter(p.id)}
+                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold border transition-all ${
+                                isActive
+                                    ? activeColors[p.id]
+                                    : 'bg-white text-slate-600 border-slate-200 hover:border-slate-400'
+                            }`}
+                        >
+                            {p.label}
+                            <span className={`text-[10px] font-black px-1.5 py-0.5 rounded-full ${
+                                isActive ? 'bg-white/25' : 'bg-slate-100 text-slate-500'
+                            }`}>{count}</span>
+                        </button>
+                    );
+                })}
             </div>
 
             {/* LIST VIEW */}
@@ -384,7 +437,7 @@ export default function MyTasks() {
             {viewMode === 'kanban' && (
                 <DragDropContext onDragEnd={onDragEnd}>
                     <div className="flex gap-5 overflow-x-auto pb-4 flex-1">
-                        {Object.entries(columns).map(([columnId, column]) => (
+                        {Object.entries(filteredColumns).map(([columnId, column]) => (
                             <div key={columnId} className="flex-shrink-0 w-72 bg-white rounded-2xl shadow-sm border border-slate-200 flex flex-col overflow-hidden">
                                 <div className="p-4 flex items-center justify-between border-b border-slate-100">
                                     <div className="flex items-center gap-2 font-bold text-slate-700 text-sm">

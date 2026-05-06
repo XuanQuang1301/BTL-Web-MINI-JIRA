@@ -8,6 +8,7 @@ import com.web.dto.project.UpdateProjectRequest;
 import com.web.entity.Project;
 import com.web.entity.ProjectMember;
 import com.web.entity.User;
+import com.web.entity.Task;
 import com.web.repository.CommentRepository;
 import com.web.repository.ProjectMemberRepository;
 import com.web.repository.ProjectRepository;
@@ -49,7 +50,7 @@ public class ProjectService {
 
     @Autowired
     private TaskHistoryRepository taskHistoryRepository;
-
+    
     public ProjectResponse createProject(CreateProjectRequest req, String ownerEmail) {
         String normalizedKey = req.getKey().trim().toUpperCase();
 
@@ -127,6 +128,16 @@ public class ProjectService {
                 !p.getOwner().getEmail().equalsIgnoreCase(requesterEmail)) {
             throw new AccessDeniedException("Ban khong duoc quyen xoa project nay");
         }
+
+        // Kiểm tra còn task chưa hoàn thành
+        long activeTasks = taskRepository.countActiveTasksByProjectId(id);
+        if (activeTasks > 0) {
+            throw new IllegalStateException(
+                "Không thể xóa dự án vì còn " + activeTasks + " công việc chưa hoàn thành (chưa ở trạng thái DONE). " +
+                "Vui lòng hoàn thành hoặc xóa tất cả các công việc trước khi xóa dự án."
+            );
+        }
+
         try {
             // Xóa đúng thứ tự để tránh vi phạm constraint:
             // 1) SubTask (phụ thuộc Task)
@@ -170,6 +181,7 @@ public class ProjectService {
         ProjectMember pm = new ProjectMember();
         pm.setProject(project);
         pm.setUser(user);
+        pm.setStatus("JOINED");
         String role = (req.getRole() == null || req.getRole().trim().isEmpty()) ? "MEMBER" : req.getRole().trim();
         pm.setRole(role);
         pm.setJoinedAt(LocalDateTime.now());
@@ -210,10 +222,10 @@ public class ProjectService {
         return res;
     }
 
-    public java.util.List<ProjectResponse> listMyProjects(String requesterEmail) {
+    public List<ProjectResponse> listMyProjects(String requesterEmail) {
         User user = userRepository.findByEmail(requesterEmail)
                 .orElseThrow(() -> new IllegalStateException("Khong tim thay user: " + requesterEmail));
-        java.util.List<Project> projects = projectRepository.findAllInvolvedByUserId(user.getId());
+        List<Project> projects = projectRepository.findAllInvolvedByUserId(user.getId());
         return projects.stream().map(p -> {
             ProjectResponse res = toResponse(p);
             String role = null;
@@ -297,5 +309,44 @@ public class ProjectService {
                 .stream()
                 .map(this::toMemberResponse)
                 .collect(Collectors.toList());
+    }
+    @Transactional
+    public void removeMember(Integer projectId, Integer memberId, String requesterEmail) {
+        // 1. Tìm người đang bấm nút Xóa (Requester)
+        User requester = userRepository.findByEmail(requesterEmail)
+                .orElseThrow(() -> new java.util.NoSuchElementException("Không tìm thấy người dùng yêu cầu"));
+
+        // 2. Lấy thông tin chức vụ của người bấm nút trong dự án này
+        ProjectMember requesterMember = projectMemberRepository.findByProjectIdAndUserId(projectId, requester.getId())
+                .orElseThrow(() -> new AccessDeniedException("Bạn không thuộc dự án này"));
+
+        // Chỉ OWNER hoặc MANAGER mới được phép xóa người khác
+        String requesterRole = requesterMember.getRole().toString();
+        if (!requesterRole.equals("OWNER") && !requesterRole.equals("MANAGER")) {
+            throw new AccessDeniedException("Chỉ Quản lý hoặc Chủ dự án mới có quyền xóa thành viên!");
+        }
+        ProjectMember targetMember = projectMemberRepository.findById(memberId)
+                .orElseThrow(() -> new java.util.NoSuchElementException("Không tìm thấy thành viên cần xóa"));
+
+        // Đảm bảo thành viên này đúng là của dự án hiện tại
+        if (!targetMember.getProject().getId().equals(projectId)) {
+            throw new IllegalArgumentException("Thành viên này không thuộc dự án hiện tại!");
+        }
+
+        if (targetMember.getRole().toString().equals("OWNER")) {
+            throw new AccessDeniedException("Không thể xóa Chủ dự án (OWNER)!");
+        }
+
+        // Kiểm tra thành viên còn task chưa hoàn thành trong dự án này
+        long activeTasks = taskRepository.countActiveTasksByProjectIdAndUserId(
+                projectId, targetMember.getUser().getId());
+        if (activeTasks > 0) {
+            throw new IllegalStateException(
+                "Không thể xóa thành viên vì còn " + activeTasks + " công việc chưa hoàn thành được giao cho người này. " +
+                "Vui lòng hoàn thành hoặc xóa các công việc đó trước khi xóa thành viên."
+            );
+        }
+
+        projectMemberRepository.delete(targetMember);
     }
 }

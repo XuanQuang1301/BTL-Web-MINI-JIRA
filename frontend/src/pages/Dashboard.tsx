@@ -82,7 +82,7 @@ export default function Dashboard() {
     }, []);
 
     if (isLoading) {
-        return <div className="text-blue-600 p-8 text-xl font-bold animate-pulse">Đang tổng hợp dữ liệu... ⏳</div>;
+        return <div className="text-blue-600 p-8 text-xl font-bold animate-pulse">Đang tổng hợp dữ liệu... </div>;
     }
 
     // --- DATA CHO BIỂU ĐỒ DONUT TÙY CHỈNH ---
@@ -95,7 +95,31 @@ export default function Dashboard() {
     // Lọc bỏ những trạng thái có giá trị = 0 để biểu đồ không bị đè label
     const activePieData = pieData.filter(item => item.value > 0);
     const totalTasksForPie = completedTasks + inProgressTasks + overdueTasks;
+    let formattedPieData = [...activePieData];
+    if (totalTasksForPie > 0) {
+        let percentData = formattedPieData.map(item => {
+            const exact = (item.value / totalTasksForPie) * 100;
+            return {
+                ...item,
+                intPart: Math.floor(exact),
+                remainder: exact - Math.floor(exact)
+            };
+        });
+        let currentSum = percentData.reduce((sum, item) => sum + item.intPart, 0);
+        let diff = 100 - currentSum; 
 
+        percentData.sort((a, b) => b.remainder - a.remainder);
+        for (let i = 0; i < diff; i++) {
+            percentData[i].intPart += 1;
+        }
+        formattedPieData = formattedPieData.map(item => {
+            const matched = percentData.find(p => p.name === item.name);
+            return {
+                ...item,
+                displayPercent: matched ? matched.intPart : 0
+            };
+        });
+    }
     return (
         <div className="h-full flex flex-col pb-10">
             <div className="mb-8">
@@ -200,22 +224,22 @@ export default function Dashboard() {
                                 {/* SỬA LỖI MẤT CHỮ: Thêm margin 45px ở hai bên trái/phải */}
                                 <PieChart margin={{ top: 0, right: 45, bottom: 0, left: 45 }}>
                                     <Pie
-                                        data={activePieData}
-                                        cx="50%"
-                                        cy="50%"
-                                        innerRadius={50} // Ép bánh nhỏ lại thêm xíu nữa
-                                        outerRadius={70} 
-                                        paddingAngle={3}
-                                        dataKey="value"
-                                        stroke="none"
-                                        label={({ name, percent }: any) => `${name} ${(percent * 100).toFixed(0)}%`}
-                                        labelLine={{ stroke: '#9CA3AF', strokeWidth: 1 }}
-                                        style={{ fontSize: '11px', fontWeight: '500' }} // Thu nhỏ font chữ các label xung quanh
-                                    >
-                                        {activePieData.map((entry, index) => (
-                                            <Cell key={`cell-${index}`} fill={entry.color} />
-                                        ))}
-                                    </Pie>
+                                    data={formattedPieData} 
+                                    cx="50%"
+                                    cy="50%"
+                                    innerRadius={50}
+                                    outerRadius={70} 
+                                    paddingAngle={3}
+                                    dataKey="value"
+                                    stroke="none"
+                                    label={({ payload }: any) => `${payload.name} ${payload.displayPercent}%`}
+                                    labelLine={{ stroke: '#9CA3AF', strokeWidth: 1 }}
+                                    style={{ fontSize: '11px', fontWeight: '500' }}
+                                >
+                                    {formattedPieData.map((entry, index) => (
+                                        <Cell key={`cell-${index}`} fill={entry.color} />
+                                    ))}
+                                </Pie>
                                     <Tooltip 
                                         contentStyle={{borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'}}
                                     />

@@ -23,4 +23,5 @@ public interface ProjectMemberRepository extends JpaRepository<ProjectMember, In
     @Query("update ProjectMember pm set pm.project = null where pm.project.id = :projectId")
     int clearProjectByProjectId(@Param("projectId") Integer projectId);
     List<ProjectMember> findByProjectIdAndStatus(Integer projectId, String status);
+    List<ProjectMember> findByUserId(Integer userId);
 }

@@ -25,4 +25,5 @@ public interface ProjectRepository extends JpaRepository<Project, Integer> {
             "WHERE p.owner.id = :userId OR (pm.user.id = :userId AND pm.leftAt IS NULL AND (pm.status IS NULL OR pm.status != 'PENDING')) " +
             "ORDER BY p.createdAt DESC")
     List<Project> findAllInvolvedByUserId(@Param("userId") Long userId);
+    
 }

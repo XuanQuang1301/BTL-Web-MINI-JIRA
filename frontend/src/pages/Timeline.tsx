@@ -712,10 +712,7 @@ export default function Timeline() {
             {/* Bảng timeline và các thanh tiến độ của task */}
             <div className="overflow-x-auto">
               <div className="min-w-[1120px]">
-                <div className="grid grid-cols-[88px_260px_minmax(740px,1fr)] border-b-2 border-slate-300 bg-slate-50">
-                  <div className="relative z-10 flex items-center justify-center border-r border-slate-200 bg-slate-50 px-4 py-2 text-center text-sm font-bold uppercase tracking-[0.2em] text-slate-500">
-                    Project
-                  </div>
+                <div className="grid grid-cols-[260px_minmax(740px,1fr)] border-b-2 border-slate-300 bg-slate-50">
                   <div className="flex items-center justify-center border-r border-slate-200 px-6 py-2 text-center text-lg font-bold text-slate-800">
                     Task
                   </div>
@@ -748,7 +745,7 @@ export default function Timeline() {
                 {groupedTasks.length > 0 ? (
                   <div className="relative">
                     <div
-                      className="absolute left-[348px] right-0 top-0 bottom-0 grid pointer-events-none"
+                      className="absolute left-[260px] right-0 top-0 bottom-0 grid pointer-events-none"
                       style={{
                         gridTemplateColumns: `repeat(${timelineColumns.length}, minmax(0, 1fr))`,
                       }}
@@ -775,23 +772,17 @@ export default function Timeline() {
                         key={group.projectName}
                         className="relative border-b-2 border-slate-300 last:border-b-0"
                       >
-                        <div className="grid grid-cols-[88px_260px_minmax(740px,1fr)]">
-                          <div
-                            className="relative flex items-center justify-center border-r border-slate-300 bg-slate-50/80 px-3"
-                            style={{
-                              gridRow: `span ${group.items.length} / span ${group.items.length}`,
-                            }}
-                          >
-                            <span
-                              className="text-center text-sm font-black uppercase tracking-[0.18em] text-slate-700"
-                              style={{
-                                writingMode: "vertical-rl",
-                                transform: "rotate(180deg)",
-                              }}
-                            >
-                              {group.projectName}
-                            </span>
+                        {/* Project Header Row */}
+                        <div className="flex items-center gap-3 bg-slate-100/80 px-5 py-2.5 border-b border-slate-200">
+                          <div className="flex h-6 items-center rounded-md bg-blue-100 px-2 text-[10px] font-black uppercase tracking-wider text-blue-700">
+                            Project
                           </div>
+                          <span className="text-sm font-black uppercase tracking-[0.12em] text-blue-700">
+                            {group.projectName}
+                          </span>
+                        </div>
+
+                        <div className="grid grid-cols-[260px_minmax(740px,1fr)]">
 
                           {group.items.map((task, index) => {
                             const tone = getBarTone(task);
@@ -807,7 +798,7 @@ export default function Timeline() {
                                   className={`flex min-h-[68px] flex-col justify-center border-r border-slate-200 px-4 py-3 ${rowBorderClass}`}
                                 >
                                   <div className="flex items-start justify-between gap-2">
-                                    <p className="flex-1 text-sm font-bold text-slate-900 line-clamp-2 leading-tight">
+                                    <p className="text-[13px] font-bold text-slate-700 leading-snug hover:text-blue-600 transition-colors">
                                       {task.title}
                                     </p>
                                     <span

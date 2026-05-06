@@ -31,7 +31,7 @@ public class AuthController {
     @Autowired
     private JwtUtils jwtUtils;
 
-    // ===================== SIGN UP =====================
+    // ===================== SIGN UP (Đăng ký) =====================
     @PostMapping("/signup")
     public ResponseEntity<?> registerUser(@RequestBody User signUpRequest) {
 

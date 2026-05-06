@@ -116,6 +116,20 @@ public class ProjectController {
         List<MemberResponse> members = projectService.listMembers(id);
         return ResponseEntity.ok(members);
     }
+
+    // DELETE /api/project/{id}/members/{memberId}
+    @DeleteMapping("/{id}/members/{memberId}")
+    public ResponseEntity<?> removeMember(
+            @PathVariable Integer id, 
+            @PathVariable Integer memberId, 
+            Authentication auth) {
+        
+        projectService.removeMember(id, memberId, auth.getName());
+        Map<String, String> response = new HashMap<>();
+        response.put("message", "Đã xóa thành viên khỏi dự án thành công!");
+        return ResponseEntity.ok(response);
+    }
+
     // POST /api/project/join
     @PostMapping("/join")
     public ResponseEntity<?> joinProjectByCode(@Valid @RequestBody JoinProjectRequest request, Authentication auth) {

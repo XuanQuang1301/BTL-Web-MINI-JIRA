@@ -13,8 +13,11 @@ export default function Layout() {
   const navigate = useNavigate();
   const location = useLocation();
   const [user, setUser] = useState<UserPayload | null>(null);
-
+  
   const currentUserEmail = user?.email || user?.sub;
+  const avatarUrl = localStorage.getItem("avatar");
+  const displayName = localStorage.getItem("userName") || (currentUserEmail ? currentUserEmail.split("@")[0] : "Đang tải...");
+  
   useEffect(() => {
     const token = localStorage.getItem("token");
     if (!token) {
@@ -101,7 +104,7 @@ export default function Layout() {
                   : "Đang tải..."}
               </p>
               <p className="text-xs text-blue-600 mt-1 font-medium">
-                {currentUserEmail === "thuy@gmail.com"
+                {currentUserEmail === "quangxuan1301@gmail.com"
                   ? "Quản trị viên"
                   : "Thành viên"}
               </p>
@@ -112,7 +115,11 @@ export default function Layout() {
               className="w-10 h-10 rounded-full bg-gradient-to-tr from-blue-500 to-indigo-500 flex items-center justify-center text-white font-bold shadow-md hover:shadow-lg hover:scale-105 transition-all border border-blue-200 cursor-pointer uppercase"
               title="Hồ sơ cá nhân"
             >
-              {currentUserEmail ? currentUserEmail.charAt(0) : "U"}
+              {avatarUrl ? (
+                <img src={avatarUrl} alt="Avatar" className="w-full h-full object-cover rounded-full" />
+              ) : (
+                currentUserEmail ? currentUserEmail.charAt(0) : "U"
+              )}
             </Link>
           </div>
         </header>

@@ -124,7 +124,7 @@ export default function ProjectDetail() {
     
     const canModifyTask = myRole === 'OWNER' || myRole === 'MANAGER' || (selectedTask?.assigneeId === currentUserId);
     const canToggleSub = selectedTask?.assigneeId === currentUserId;
-    
+    const isPrivileged = myRole === 'OWNER' || myRole === 'MANAGER';
     const fetchData = async (showLoading = true) => {
         if (showLoading) setIsLoading(true); 
         try {
@@ -314,6 +314,7 @@ export default function ProjectDetail() {
             case 'TODO': return 'bg-gray-50 text-gray-500 border-gray-200';
             case 'IN_PROGRESS': return 'bg-blue-50 text-blue-600 border-blue-200';
             case 'DONE': return 'bg-green-50 text-green-600 border-green-200';
+            case 'REVIEW': return 'bg-yellow-50 text-yellow-600 border-yellow-200';
             default: return 'bg-gray-50 text-gray-500';
         }
     };
@@ -557,6 +558,22 @@ export default function ProjectDetail() {
             setIsUpdatingTask(false);
         }
     };
+
+    const handleDeleteMember = async (memberId: number) => {
+        if (!window.confirm('Bạn có chắc chắn muốn xóa thành viên này khỏi dự án?\n\nLưu ý: Chỉ có thể xóa khi thành viên không còn công việc nào chưa hoàn thành được giao.')) return;
+        try {
+            const token = localStorage.getItem('token');
+            await axios.delete(`http://localhost:8081/api/project/${id}/members/${memberId}`, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            alert("Đã xóa thành viên thành công!");
+            fetchData();
+        } catch (error: any) {
+            const msg = error.response?.data?.error || "Bạn không có quyền hoặc lỗi Server.";
+            alert("Không thể xóa thành viên:\n" + msg);
+        }
+    };
+
     if (isLoading) return <div className="p-10 text-blue-600 font-black animate-pulse">ĐANG TẢI DỮ LIỆU... </div>;
     if (!project) return <div className="p-10 text-red-500 font-bold">Lỗi: Không tìm thấy dự án!</div>;
 
@@ -740,7 +757,7 @@ export default function ProjectDetail() {
                                                         <div className="flex-1 bg-gray-100 h-1.5 rounded-full overflow-hidden">
                                                             <div className="bg-blue-500 h-full rounded-full transition-all" style={{ width: `${task.progress}%` }}></div>
                                                         </div>
-                                                        <span className="text-[10px] font-black text-gray-300 w-6 text-right">{task.progress}%</span>
+                                                        <span className="text-[10px] font-black text-gray-500 w-6 text-right">{task.progress}%</span>
                                                     </div>
                                                 </td>
                                                 
@@ -754,10 +771,18 @@ export default function ProjectDetail() {
                                                         <div className="relative">
                                                             <button 
                                                                 onClick={(e) => {
-                                                                    e.preventDefault(); e.stopPropagation();
+                                                                    e.preventDefault(); 
+                                                                    e.stopPropagation();
                                                                     setAssigningTaskId(assigningTaskId === task.id ? null : task.id);
+                                                                    if (isPrivileged) {
+                                                                        setAssigningTaskId(assigningTaskId === task.id ? null : task.id);
+                                                                    }
                                                                 }}
-                                                                className={`w-8 h-8 rounded-full flex items-center justify-center text-white text-[10px] font-black uppercase shadow-md border-2 border-white transition-all active:scale-90 shrink-0 ${assignee ? 'bg-blue-600' : 'bg-gray-300 hover:bg-blue-400'}`}
+                                                                title={!isPrivileged ? "Chỉ Quản lý (MANAGER) hoặc Chủ dự án (OWNER) mới được giao việc!" : "Giao việc"}
+                                                                className={`w-8 h-8 rounded-full flex items-center justify-center text-white text-[10px] font-black uppercase shadow-md border-2 border-white transition-all shrink-0 
+                                                                    ${assignee ? 'bg-blue-600' : 'bg-gray-300 hover:bg-blue-400'} 
+                                                                    ${isPrivileged ? 'active:scale-90 cursor-pointer' : 'cursor-not-allowed opacity-60 hover:bg-gray-300'}
+                                                                `}
                                                             >
                                                                 {assignee?.name?.charAt(0) || "?"}
                                                             </button>
@@ -863,11 +888,9 @@ export default function ProjectDetail() {
                                         </td>
                                         <td className="p-5 text-center">
                                             <button 
-                                                onClick={() => {
-                                                    if(window.confirm('Bạn có chắc muốn xóa thành viên này khỏi dự án?')) {
-                                                        alert('API Xóa thành viên đang được cập nhật!');
-                                                    }
-                                                    
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    handleDeleteMember(member.id); 
                                                 }}
                                                 className="text-slate-300 hover:text-rose-500 p-2 hover:bg-rose-50 rounded-xl transition-all"
                                                 title="Xóa thành viên"

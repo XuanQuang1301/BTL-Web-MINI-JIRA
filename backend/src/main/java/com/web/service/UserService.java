@@ -4,18 +4,21 @@ import com.web.dto.user.ChangePasswordRequest;
 import com.web.dto.user.UpdateProfileRequest;
 import com.web.dto.user.UserResponse;
 import com.web.repository.UserRepository;
+import com.web.repository.ProjectMemberRepository;
+import com.web.repository.TaskRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
-
 import com.cloudinary.utils.ObjectUtils; 
 import java.io.IOException; 
 import java.util.Map;
 import java.util.List;
 import java.util.stream.Collectors;
 import com.web.entity.User;
+import com.web.entity.ProjectMember;
+import com.web.entity.Task; 
 @Service
 public class UserService {
 
@@ -23,6 +26,11 @@ public class UserService {
     private UserRepository userRepository;
     @Autowired
     private PasswordEncoder passwordEncoder;
+    @Autowired
+    private TaskRepository taskRepository; 
+    @Autowired
+    private ProjectMemberRepository projectMemberRepository; 
+
     public List<UserResponse> getAllUsers() {
         return userRepository.findAll().stream().map(user -> {
             UserResponse res = new UserResponse();
@@ -91,5 +99,19 @@ public class UserService {
         }
         user.setPassword(passwordEncoder.encode(req.getNewPassword()));
         userRepository.save(user);
+    }
+    @Transactional
+    public void deleteUser(Integer id, String requesterEmail) {
+        User targetUser = userRepository.findById(id)
+                .orElseThrow(() -> new java.util.NoSuchElementException("Không tìm thấy người dùng cần xóa"));
+        User requester = userRepository.findByEmail(requesterEmail).orElseThrow();
+        List<Task> userTasks = taskRepository.findByAssigneeId(id); 
+        for(Task t: userTasks){
+            t.setAssignee(null);
+            taskRepository.save(t); 
+        }
+        List<ProjectMember> memberships = projectMemberRepository.findByUserId(id); 
+        projectMemberRepository.deleteAll(memberships);
+        userRepository.delete(targetUser);
     }
 }

@@ -63,8 +63,12 @@ export default function UserManagement() {
                             <tr key={user.id} className="hover:bg-slate-50/50 transition-colors group">
                                 <td className="p-5">
                                     <div className="flex items-center gap-4">
-                                        <div className="w-10 h-10 rounded-xl bg-slate-900 flex items-center justify-center text-white text-[10px] font-black uppercase shadow-md group-hover:scale-110 transition-transform">
-                                            {user.name.substring(0, 2)}
+                                        <div className="w-10 h-10 rounded-xl bg-slate-900 flex items-center justify-center text-white text-[10px] font-black uppercase shadow-md group-hover:scale-110 transition-transform overflow-hidden shrink-0">
+                                            {user.avatarUrl ? (
+                                                <img src={user.avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
+                                            ) : (
+                                                user.name.substring(0, 2)
+                                            )}
                                         </div>
                                         <div>
                                             <p className="text-sm font-bold text-slate-800">{user.name}</p>

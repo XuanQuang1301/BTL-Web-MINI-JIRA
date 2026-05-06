@@ -41,6 +41,9 @@ export default function Profile() {
                 headers: { Authorization: `Bearer ${token}` }
             });
             alert('Cập nhật thông tin thành công!');
+            if (user.name) localStorage.setItem('userName', user.name);
+            if (user.avatarUrl) localStorage.setItem('avatar', user.avatarUrl);
+            window.location.reload();
             setIsEditing(false); 
         } catch (error) {
             console.error(error);
@@ -174,6 +177,7 @@ export default function Profile() {
                                 <option value="Hà Nội">Hà Nội</option>
                                 <option value="Hồ Chí Minh">Hồ Chí Minh</option>
                                 <option value="Đà Nẵng">Đà Nẵng</option>
+                                
                             </select>
                         ) : (
                             <input value={user.city || 'Chưa cập nhật'} className={inputClass} readOnly />
@@ -255,7 +259,11 @@ export default function Profile() {
                 <ChangeAvatarModal 
                     currentAvatar={user.avatarUrl} 
                     onClose={() => setShowAvatarModal(false)} 
-                    onUpdate={(newUrl: string) => setUser({ ...user, avatarUrl: newUrl })} 
+                    onUpdate={(newUrl: string) => {
+                        setUser({ ...user, avatarUrl: newUrl });
+                        localStorage.setItem("avatar", newUrl);
+                        window.location.reload();
+                    }} 
                 />
             )}
             {showPasswordModal && (
