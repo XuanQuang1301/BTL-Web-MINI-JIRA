@@ -38,7 +38,8 @@ public class UserService {
             res.setName(user.getName());
             res.setEmail(user.getEmail());
             res.setAvatarUrl(user.getAvatarUrl());
-            res.setCreateAt(user.getCreatedAt());; 
+            res.setCreateAt(user.getCreatedAt());;
+            res.setLocked(user.isLocked());
             return res;
         }).collect(Collectors.toList());
     }
@@ -113,5 +114,20 @@ public class UserService {
         List<ProjectMember> memberships = projectMemberRepository.findByUserId(id); 
         projectMemberRepository.deleteAll(memberships);
         userRepository.delete(targetUser);
+    }
+
+    @Transactional
+    public boolean toggleLockUser(Integer id, String requesterEmail) {
+        User targetUser = userRepository.findById(id)
+                .orElseThrow(() -> new java.util.NoSuchElementException("Không tìm thấy người dùng"));
+        User requester = userRepository.findByEmail(requesterEmail)
+                .orElseThrow(() -> new RuntimeException("Người thực hiện không tồn tại"));
+        // Không cho khóa chính mình
+        if (targetUser.getEmail().equals(requesterEmail)) {
+            throw new RuntimeException("Không thể khóa tài khoản của chính mình!");
+        }
+        targetUser.setLocked(!targetUser.isLocked());
+        userRepository.save(targetUser);
+        return targetUser.isLocked();
     }
 }

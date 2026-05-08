@@ -67,6 +67,11 @@ public class AuthController {
             // Lấy thông tin user để trả về (ẩn password)
             User user = userRepository.findByEmail(loginRequest.getEmail()).orElse(null);
 
+            // Kiểm tra tài khoản có bị khóa không
+            if (user != null && user.isLocked()) {
+                return ResponseEntity.status(403).body("Tài khoản của bạn đã bị khóa. Vui lòng liên hệ quản trị viên!");
+            }
+
             Map<String, Object> profile = new HashMap<>();
             if (user != null) {
                 profile.put("id", user.getId());

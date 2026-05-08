@@ -52,6 +52,9 @@ public class User {
 
     @Column(name = "state", length = 100)
     private String state;
+
+    @Column(nullable = false)
+    private boolean locked = false;
     @Override
     public String toString() {
         return "User [id=" + id + ", name=" + name + ", email=" + email + ", password=" + password + ", avatarUrl="

@@ -82,4 +82,16 @@ public class UserController {
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         }
     }
+
+    // PUT /api/users/{id}/lock — Toggle khóa/mở khóa tài khoản
+    @PutMapping("/{id}/lock")
+    public ResponseEntity<?> toggleLockUser(@PathVariable Integer id, Authentication auth) {
+        try {
+            boolean isLocked = userService.toggleLockUser(id, auth.getName());
+            String msg = isLocked ? "Đã khóa tài khoản thành công!" : "Đã mở khóa tài khoản thành công!";
+            return ResponseEntity.ok(Map.of("message", msg, "locked", isLocked));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
 }

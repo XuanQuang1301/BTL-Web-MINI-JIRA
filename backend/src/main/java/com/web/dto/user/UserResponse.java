@@ -12,4 +12,5 @@ public class UserResponse {
     private String address;
     private String city;
     private String state;
+    private boolean locked;
 }

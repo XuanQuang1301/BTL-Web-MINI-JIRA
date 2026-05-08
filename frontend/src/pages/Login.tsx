@@ -31,16 +31,18 @@ export default function Login() {
             console.log('Đăng nhập thành công! Token:', token); 
         }
         catch(err: any){
-            console.error('Lỗi đăng nhập:', err); 
-            if(err.response && err.response.data && err.response.data.message){
-                setError(err.response.data.message); 
-            }else{ 
-                setError('Không thể kết nối đến máy chủ. Vui lòng thử lại!!!'); 
+            console.error('Lỗi đăng nhập:', err);
+            if (err.response && err.response.status === 403) {
+                setError(err.response.data || 'Tài khoản của bạn đã bị khóa. Vui lòng liên hệ quản trị viên!');
+            } else if(err.response && err.response.data && err.response.data.message){
+                setError(err.response.data.message);
+            }else{
+                setError('Không thể kết nối đến máy chủ. Vui lòng thử lại!!!');
             }
         }finally{
-            setIsLoading(false); 
+            setIsLoading(false);
         }
-    }; 
+    };
 
     return (
         <div className="min-h-screen flex items-center justify-center bg-blue-50"> 
